@@ -14,7 +14,6 @@ import { loadAppState, saveAppState } from '@/services/stateStorage';
 import {
   AppState,
   DayKey,
-  WeightUnit,
   WorkoutExercise,
   WorkoutLog,
   WorkoutPlan,
@@ -32,7 +31,6 @@ type Action =
   | { type: 'removeExercise'; workoutId: string; itemId: string }
   | { type: 'updateExercise'; workoutId: string; itemId: string; patch: WorkoutExercisePatch }
   | { type: 'completeWorkout'; log: WorkoutLog }
-  | { type: 'setWeightUnit'; unit: WeightUnit }
   | { type: 'reset'; state: AppState };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -85,8 +83,6 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case 'completeWorkout':
       return { ...state, history: [action.log, ...state.history] };
-    case 'setWeightUnit':
-      return { ...state, weightUnit: action.unit };
     default:
       return state;
   }
@@ -103,7 +99,6 @@ type AppStoreValue = {
   removeExerciseFromWorkout: (workoutId: string, itemId: string) => void;
   updateWorkoutExercise: (workoutId: string, itemId: string, patch: WorkoutExercisePatch) => void;
   completeWorkout: (workoutId: string, durationMinutes: number, completedSets: number) => void;
-  setWeightUnit: (unit: WeightUnit) => void;
   deleteAllData: () => void;
 };
 
@@ -212,10 +207,6 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [state.workouts],
   );
 
-  const setWeightUnit = useCallback((unit: WeightUnit) => {
-    dispatch({ type: 'setWeightUnit', unit });
-  }, []);
-
   const deleteAllData = useCallback(() => {
     dispatch({ type: 'reset', state: createInitialState() });
   }, []);
@@ -232,7 +223,6 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       removeExerciseFromWorkout,
       updateWorkoutExercise,
       completeWorkout,
-      setWeightUnit,
       deleteAllData,
     }),
     [
@@ -243,7 +233,6 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       isReady,
       removeExerciseFromWorkout,
       deleteAllData,
-      setWeightUnit,
       state,
       storageError,
       toggleFavorite,

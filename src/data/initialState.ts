@@ -5,6 +5,5 @@ export function createInitialState(): AppState {
     workouts: [],
     favoriteExerciseIds: [],
     history: [],
-    weightUnit: 'kg',
   };
 }

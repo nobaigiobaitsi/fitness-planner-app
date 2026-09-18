@@ -75,11 +75,8 @@ export type WorkoutLog = {
   exerciseCount: number;
 };
 
-export type WeightUnit = 'kg' | 'lb';
-
 export type AppState = {
   workouts: WorkoutPlan[];
   favoriteExerciseIds: string[];
   history: WorkoutLog[];
-  weightUnit: WeightUnit;
 };

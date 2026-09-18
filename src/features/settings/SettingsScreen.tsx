@@ -1,5 +1,5 @@
 import Constants from 'expo-constants';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert, StyleSheet, Text, View } from 'react-native';
 
 import { BackHeader } from '@/components/AppHeader';
 import { AppIcon } from '@/components/AppIcon';
@@ -8,11 +8,10 @@ import { SurfaceCard } from '@/components/Cards';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/Section';
 import { useAppStore } from '@/store/AppStore';
-import { colors, radii, spacing, typography } from '@/theme/tokens';
-import { WeightUnit } from '@/types/domain';
+import { colors, spacing, typography } from '@/theme/tokens';
 
 export default function SettingsScreen() {
-  const { state, setWeightUnit, deleteAllData } = useAppStore();
+  const { state, deleteAllData } = useAppStore();
 
   const hasUserData =
   state.workouts.length > 0 ||
@@ -37,35 +36,6 @@ const confirmDeleteAllData = () => {
   return (
     <Screen>
       <BackHeader title="Settings" />
-
-      <SectionHeader title="Preferences" />
-      <SurfaceCard style={styles.card}>
-        <View style={styles.settingRow}>
-          <View style={styles.settingCopy}>
-            <Text style={styles.settingTitle}>Weight unit</Text>
-            <Text style={styles.settingDescription}>Used throughout plans and workout sessions.</Text>
-          </View>
-          <View style={styles.segmentedControl}>
-            {(['kg', 'lb'] satisfies WeightUnit[]).map((unit) => {
-              const selected = state.weightUnit === unit;
-              return (
-                <Pressable
-                  key={unit}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected }}
-                  onPress={() => setWeightUnit(unit)}
-                  style={({ pressed }) => [
-                    styles.segment,
-                    selected && styles.selectedSegment,
-                    pressed && styles.pressed,
-                  ]}>
-                  <Text style={[styles.segmentText, selected && styles.selectedSegmentText]}>{unit}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-      </SurfaceCard>
 
       <SectionHeader title="Your data" />
       <SurfaceCard style={styles.dataCard}>
@@ -96,17 +66,6 @@ const confirmDeleteAllData = () => {
 }
 
 const styles = StyleSheet.create({
-  card: {
-    padding: spacing.md,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-  },
-  settingCopy: {
-    flex: 1,
-  },
   settingTitle: {
     color: colors.ink,
     fontSize: typography.body,
@@ -117,30 +76,6 @@ const styles = StyleSheet.create({
     fontSize: typography.caption,
     lineHeight: 18,
     marginTop: 4,
-  },
-  segmentedControl: {
-    flexDirection: 'row',
-    padding: 3,
-    borderRadius: radii.sm,
-    backgroundColor: colors.surfaceMuted,
-  },
-  segment: {
-    minWidth: 42,
-    height: 34,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: 8,
-  },
-  selectedSegment: {
-    backgroundColor: colors.surface,
-  },
-  segmentText: {
-    color: colors.inkMuted,
-    fontSize: typography.label,
-    fontWeight: '700',
-  },
-  selectedSegmentText: {
-    color: colors.primary,
   },
   dataCard: {
     flexDirection: 'row',
@@ -186,8 +121,5 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: typography.caption,
     marginTop: 3,
-  },
-  pressed: {
-    opacity: 0.68,
   },
 });

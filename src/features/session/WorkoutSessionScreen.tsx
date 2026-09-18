@@ -173,7 +173,7 @@ export default function WorkoutSessionScreen() {
                       pressed && styles.pressed,
                     ]}>
                     <Text style={[styles.setValue, styles.setColumn]}>{setIndex + 1}</Text>
-                    <Text style={styles.setValue}>{displayWeight(item.weightKg, state.weightUnit)}</Text>
+                    <Text style={styles.setValue}>{displayWeight(item.weightKg)}</Text>
                     <Text style={styles.setValue}>{item.reps}</Text>
                     <View style={styles.doneColumn}>
                       <View style={[styles.checkbox, isDone && styles.checkedBox]}>

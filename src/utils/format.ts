@@ -1,4 +1,3 @@
-import { WeightUnit } from '@/types/domain';
 
 export function formatLongDate(date = new Date()) {
   return new Intl.DateTimeFormat(undefined, {
@@ -29,10 +28,10 @@ export function formatElapsed(totalSeconds: number) {
   return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function displayWeight(weightKg: number | undefined, unit: WeightUnit) {
+export function displayWeight(weightKg: number | undefined) {
   if (weightKg === undefined) return 'Bodyweight';
-  const value = unit === 'kg' ? weightKg : Math.round(weightKg * 2.20462);
-  return `${value} ${unit}`;
+
+  return `${weightKg} kg`;
 }
 
 export function secondsToRestLabel(seconds: number) {

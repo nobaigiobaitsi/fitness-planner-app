@@ -64,7 +64,10 @@ function ExerciseEditor({
   item: WorkoutExercise;
   index: number;
 }) {
-  const { state, removeExerciseFromWorkout, updateWorkoutExercise } = useAppStore();
+  const {
+  removeExerciseFromWorkout,
+  updateWorkoutExercise,
+} = useAppStore();
   const exercise = getExerciseById(item.exerciseId);
   if (!exercise) return null;
 
@@ -107,7 +110,7 @@ function ExerciseEditor({
         />
         <Stepper
           label="Weight"
-          value={displayWeight(item.weightKg, state.weightUnit)}
+          value={displayWeight(item.weightKg)}
           onDecrease={() =>
             update({ weightKg: item.weightKg && item.weightKg > 2.5 ? item.weightKg - 2.5 : undefined })
           }

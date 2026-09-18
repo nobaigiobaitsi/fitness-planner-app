@@ -1,10 +1,11 @@
 import { Image } from 'expo-image';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackHeader } from '@/components/AppHeader';
 import { AppIcon } from '@/components/AppIcon';
+import { Button } from '@/components/Buttons';
 import { EmptyState } from '@/components/EmptyState';
 import { SearchField } from '@/components/Inputs';
 import { Screen } from '@/components/Screen';
@@ -19,7 +20,11 @@ function getParam(value: string | string[] | undefined) {
 export default function AddExerciseScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const workoutId = getParam(params.id) ?? '';
-  const { state, addExerciseToWorkout } = useAppStore();
+  const {
+  state,
+  addExerciseToWorkout,
+  removeExerciseFromWorkout,
+  } = useAppStore();
   const [query, setQuery] = useState('');
   const workout = state.workouts.find((item) => item.id === workoutId);
 
@@ -43,14 +48,38 @@ export default function AddExerciseScreen() {
   }
 
   return (
-    <Screen>
+    <Screen
+      footer={
+        <View style={styles.footer}>
+          <Button
+            label={`Done · ${workout.exercises.length} selected`}
+            icon="check"
+            onPress={() => router.back()}
+          />
+        </View>
+      }> 
       <BackHeader title={`Add to ${workout.name}`} />
       <SearchField value={query} onChangeText={setQuery} placeholder="Search exercises" />
-      <Text style={styles.helper}>You can add several exercises before returning to your workout.</Text>
+      <Text style={styles.helper}>You can add several exercises before returning to your workout. Your selections are saved automatically. Tap Done when finished.</Text>
 
       <View style={styles.list}>
         {results.map((exercise) => {
-          const added = workout.exercises.some((item) => item.exerciseId === exercise.id);
+          const workoutExercise = workout.exercises.find(
+            (item) => item.exerciseId === exercise.id,
+          );
+
+          const added = Boolean(workoutExercise);
+
+          const toggleExercise = () => {
+            if (workoutExercise) {
+              removeExerciseFromWorkout(
+                workout.id,
+                workoutExercise.id,
+            ); 
+            return;
+          }
+          addExerciseToWorkout(workout.id, exercise.id);
+        };
           return (
             <View key={exercise.id} style={styles.row}>
               <Image source={exercise.imageSource} contentFit="cover" transition={150} style={styles.image} />
@@ -63,9 +92,7 @@ export default function AddExerciseScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={added ? `${exercise.name} already added` : `Add ${exercise.name}`}
-                accessibilityState={{ disabled: added }}
-                disabled={added}
-                onPress={() => addExerciseToWorkout(workout.id, exercise.id)}
+                onPress={toggleExercise}
                 style={({ pressed }) => [
                   styles.addButton,
                   added && styles.addedButton,
@@ -146,4 +173,15 @@ const styles = StyleSheet.create({
   pressed: {
     opacity: 0.62,
   },
+  footer: {
+  width: '100%',
+  maxWidth: 760,
+  alignSelf: 'center',
+  paddingHorizontal: spacing.lg,
+  paddingTop: spacing.sm,
+  paddingBottom: spacing.md,
+  borderTopWidth: 1,
+  borderTopColor: colors.border,
+  backgroundColor: colors.surface,
+},
 });

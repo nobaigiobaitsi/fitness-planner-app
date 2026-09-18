@@ -8,9 +8,11 @@ import { Button } from '@/components/Buttons';
 import { EmptyState } from '@/components/EmptyState';
 import { Screen } from '@/components/Screen';
 import { SectionHeader } from '@/components/Section';
+import { ZoomableImageModal } from '@/components/ZoomableImageModal';
 import { getExerciseById } from '@/data/exercises';
 import { useAppStore } from '@/store/AppStore';
 import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { useState } from 'react';
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -20,6 +22,7 @@ export default function ExerciseDetailsScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const exercise = getExerciseById(getParam(params.id) ?? '');
   const { state, toggleFavorite } = useAppStore();
+  const [isImageOpen, setIsImageOpen] = useState(false);
 
   if (!exercise) {
     return (
@@ -37,6 +40,7 @@ export default function ExerciseDetailsScreen() {
   const favorite = state.favoriteExerciseIds.includes(exercise.id);
 
   return (
+    <>
     <Screen>
       <BackHeader
         title="Exercise details"
@@ -54,8 +58,18 @@ export default function ExerciseDetailsScreen() {
           </Pressable>
         }
       />
-
-      <Image source={exercise.imageSource} contentFit="cover" transition={200} style={styles.heroImage} />
+      <Pressable
+        accessibilityHint="Opens a full-screen image that supports pinch zoom"
+          accessibilityLabel={`Enlarge ${exercise.name} image`}
+            accessibilityRole="button"
+              onPress={() => setIsImageOpen(true)}
+                style={({ pressed }) => [ styles.heroButton, pressed && styles.pressed, ]}>
+                    <Image source={exercise.imageSource} contentFit="cover" transition={200} style={styles.heroImage} />
+                    
+                    <View pointerEvents="none" style={styles.zoomHint}>
+                            <Text style={styles.zoomHintText}>Tap to zoom</Text>
+                    </View>
+        </Pressable>
 
       <View style={styles.titleBlock}>
         <Text style={styles.eyebrow}>{exercise.muscleGroup.toUpperCase()}</Text>
@@ -110,6 +124,14 @@ export default function ExerciseDetailsScreen() {
         style={styles.addButton}
       />
     </Screen>
+
+    <ZoomableImageModal
+      visible={isImageOpen}
+      source={exercise.imageSource}
+      title={exercise.name}
+      onClose={() => setIsImageOpen(false)}
+    />
+    </>
   );
 }
 
@@ -124,11 +146,30 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
     backgroundColor: colors.surface,
   },
-  heroImage: {
+  heroButton: {
     width: '100%',
-    aspectRatio: 1.5,
+    aspectRatio: 16 / 9,
     borderRadius: radii.xl,
     backgroundColor: colors.surfaceMuted,
+    overflow: 'hidden',
+  },
+  heroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  zoomHint: {
+    position: 'absolute',
+    right: spacing.sm,
+    bottom: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    borderRadius: radii.pill,
+    backgroundColor: 'rgba(0, 0, 0, 0.62)',
+  },
+  zoomHintText: {
+    color: colors.white,
+    fontSize: typography.caption,
+    fontWeight: '700',
   },
   titleBlock: {
     marginTop: spacing.xl,

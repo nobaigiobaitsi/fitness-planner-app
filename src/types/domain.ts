@@ -16,7 +16,9 @@ export type Equipment =
   | 'Bodyweight'
   | 'Cable'
   | 'Machine'
-  | 'Bench';
+  | 'Bench'
+  | 'Kettlebell'
+  | 'Resistance Band';
 
 export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
 

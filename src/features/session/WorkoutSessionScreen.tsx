@@ -1,0 +1,378 @@
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+
+import { AppIcon } from '@/components/AppIcon';
+import { Button } from '@/components/Buttons';
+import { EmptyState } from '@/components/EmptyState';
+import { Screen } from '@/components/Screen';
+import { getExerciseById } from '@/data/exercises';
+import { useAppStore } from '@/store/AppStore';
+import { colors, radii, spacing, typography } from '@/theme/tokens';
+import { displayWeight, formatElapsed, secondsToRestLabel } from '@/utils/format';
+
+function getParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default function WorkoutSessionScreen() {
+  const params = useLocalSearchParams<{ id?: string | string[] }>();
+  const workoutId = getParam(params.id) ?? '';
+  const { state, completeWorkout } = useAppStore();
+  const workout = state.workouts.find((item) => item.id === workoutId);
+  const startedAt = useRef(Date.now());
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [completed, setCompleted] = useState<Record<string, boolean[]>>(() =>
+    Object.fromEntries((workout?.exercises ?? []).map((item) => [item.id, Array(item.sets).fill(false)])),
+  );
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds(Math.floor((Date.now() - startedAt.current) / 1000));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const counts = useMemo(() => {
+    const total = workout?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
+    const done = Object.values(completed).reduce(
+      (sum, sets) => sum + sets.filter(Boolean).length,
+      0,
+    );
+    return { total, done };
+  }, [completed, workout?.exercises]);
+
+  if (!workout) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="info"
+          title="Workout unavailable"
+          message="This workout is no longer in your weekly plan."
+          actionLabel="Return home"
+          onAction={() => router.replace('/')}
+        />
+      </Screen>
+    );
+  }
+
+  const toggleSet = (itemId: string, setIndex: number) => {
+    setCompleted((current) => ({
+      ...current,
+      [itemId]: (current[itemId] ?? []).map((isDone, index) =>
+        index === setIndex ? !isDone : isDone,
+      ),
+    }));
+  };
+
+  const leaveSession = () => {
+    Alert.alert('Leave workout?', 'Set progress from this active session will be discarded.', [
+      { text: 'Keep training', style: 'cancel' },
+      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
+    ]);
+  };
+
+  const saveSession = () => {
+    completeWorkout(workout.id, Math.max(1, Math.round(elapsedSeconds / 60)), counts.done);
+    router.replace('/');
+  };
+
+  const finishSession = () => {
+    if (counts.done < counts.total) {
+      Alert.alert(
+        'Finish early?',
+        `You completed ${counts.done} of ${counts.total} sets. The completed sets will still be saved.`,
+        [
+          { text: 'Keep training', style: 'cancel' },
+          { text: 'Finish', onPress: saveSession },
+        ],
+      );
+      return;
+    }
+    saveSession();
+  };
+
+  const progress = counts.total ? counts.done / counts.total : 0;
+
+  return (
+    <Screen
+      footer={
+        <View style={styles.footer}>
+          <Button
+            label={counts.done === counts.total ? 'Complete workout' : `Finish · ${counts.done}/${counts.total} sets`}
+            icon="check"
+            onPress={finishSession}
+            disabled={!counts.done}
+          />
+        </View>
+      }>
+      <View style={styles.header}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Leave workout"
+          onPress={leaveSession}
+          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
+          <AppIcon name="close" color={colors.ink} size={22} />
+        </Pressable>
+        <View style={styles.headerCopy}>
+          <Text numberOfLines={1} style={styles.headerTitle}>
+            {workout.name}
+          </Text>
+          <Text style={styles.headerCaption}>Workout in progress</Text>
+        </View>
+        <View style={styles.timer}>
+          <AppIcon name="clock" color={colors.primary} size={18} />
+          <Text style={styles.timerText}>{formatElapsed(elapsedSeconds)}</Text>
+        </View>
+      </View>
+
+      <View style={styles.progressHeader}>
+        <Text style={styles.progressLabel}>Session progress</Text>
+        <Text style={styles.progressValue}>{Math.round(progress * 100)}%</Text>
+      </View>
+      <View style={styles.progressTrack}>
+        <View style={[styles.progressFill, { width: `${progress * 100}%` }]} />
+      </View>
+
+      <View style={styles.exerciseList}>
+        {workout.exercises.map((item, exerciseIndex) => {
+          const exercise = getExerciseById(item.exerciseId);
+          if (!exercise) return null;
+
+          return (
+            <View key={item.id} style={styles.exerciseCard}>
+              <View style={styles.exerciseHeading}>
+                <View style={[styles.exerciseNumber, { backgroundColor: workout.accent }]}>
+                  <Text style={styles.exerciseNumberText}>{exerciseIndex + 1}</Text>
+                </View>
+                <View style={styles.exerciseCopy}>
+                  <Text style={styles.exerciseName}>{exercise.name}</Text>
+                  <Text style={styles.exerciseMeta}>{secondsToRestLabel(item.restSeconds)}</Text>
+                </View>
+              </View>
+
+              <View style={styles.tableHeader}>
+                <Text style={[styles.tableHeading, styles.setColumn]}>SET</Text>
+                <Text style={styles.tableHeading}>WEIGHT</Text>
+                <Text style={styles.tableHeading}>REPS</Text>
+                <Text style={[styles.tableHeading, styles.doneColumn]}>DONE</Text>
+              </View>
+
+              {Array.from({ length: item.sets }, (_, setIndex) => {
+                const isDone = completed[item.id]?.[setIndex] ?? false;
+                return (
+                  <Pressable
+                    key={`${item.id}-${setIndex}`}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: isDone }}
+                    accessibilityLabel={`${exercise.name}, set ${setIndex + 1}`}
+                    onPress={() => toggleSet(item.id, setIndex)}
+                    style={({ pressed }) => [
+                      styles.setRow,
+                      isDone && styles.completedSet,
+                      pressed && styles.pressed,
+                    ]}>
+                    <Text style={[styles.setValue, styles.setColumn]}>{setIndex + 1}</Text>
+                    <Text style={styles.setValue}>{displayWeight(item.weightKg, state.weightUnit)}</Text>
+                    <Text style={styles.setValue}>{item.reps}</Text>
+                    <View style={styles.doneColumn}>
+                      <View style={[styles.checkbox, isDone && styles.checkedBox]}>
+                        {isDone ? <AppIcon name="check" color={colors.white} size={19} /> : null}
+                      </View>
+                    </View>
+                  </Pressable>
+                );
+              })}
+            </View>
+          );
+        })}
+      </View>
+    </Screen>
+  );
+}
+
+const styles = StyleSheet.create({
+  header: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.xl,
+  },
+  closeButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  headerCopy: {
+    flex: 1,
+  },
+  headerTitle: {
+    color: colors.ink,
+    fontSize: typography.heading,
+    fontWeight: '800',
+  },
+  headerCaption: {
+    color: colors.inkMuted,
+    fontSize: typography.caption,
+    marginTop: 2,
+  },
+  timer: {
+    minWidth: 78,
+    height: 40,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 5,
+    paddingHorizontal: spacing.sm,
+    borderRadius: radii.pill,
+    backgroundColor: colors.primarySoft,
+  },
+  timerText: {
+    color: colors.primaryDark,
+    fontSize: typography.label,
+    fontWeight: '800',
+    fontVariant: ['tabular-nums'],
+  },
+  progressHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  progressLabel: {
+    color: colors.inkMuted,
+    fontSize: typography.label,
+  },
+  progressValue: {
+    color: colors.primary,
+    fontSize: typography.label,
+    fontWeight: '800',
+  },
+  progressTrack: {
+    height: 9,
+    overflow: 'hidden',
+    borderRadius: radii.pill,
+    backgroundColor: colors.surfaceMuted,
+    marginTop: spacing.xs,
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: radii.pill,
+    backgroundColor: colors.primary,
+  },
+  exerciseList: {
+    gap: spacing.md,
+    marginTop: spacing.xl,
+  },
+  exerciseCard: {
+    overflow: 'hidden',
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  exerciseHeading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  exerciseNumber: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  exerciseNumberText: {
+    color: colors.white,
+    fontSize: typography.label,
+    fontWeight: '800',
+  },
+  exerciseCopy: {
+    flex: 1,
+  },
+  exerciseName: {
+    color: colors.ink,
+    fontSize: typography.body,
+    fontWeight: '700',
+  },
+  exerciseMeta: {
+    color: colors.inkMuted,
+    fontSize: typography.caption,
+    marginTop: 3,
+  },
+  tableHeader: {
+    minHeight: 28,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  tableHeading: {
+    flex: 1,
+    color: colors.inkMuted,
+    fontSize: 10,
+    fontWeight: '800',
+    textAlign: 'center',
+    letterSpacing: 0.5,
+  },
+  setRow: {
+    minHeight: 54,
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  completedSet: {
+    backgroundColor: '#F0FAF6',
+  },
+  setValue: {
+    flex: 1,
+    color: colors.ink,
+    fontSize: typography.label,
+    fontWeight: '600',
+    textAlign: 'center',
+  },
+  setColumn: {
+    flex: 0.55,
+  },
+  doneColumn: {
+    flex: 0.7,
+    alignItems: 'center',
+  },
+  checkbox: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  checkedBox: {
+    borderColor: colors.primary,
+    backgroundColor: colors.primary,
+  },
+  footer: {
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  pressed: {
+    opacity: 0.65,
+  },
+});

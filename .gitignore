@@ -43,3 +43,12 @@ yarn-error.*
 
 # local application settings
 .env
+
+# Signing and service-account credentials
+*.keystore
+credentials.json
+*service-account*.json
+
+# IDE
+.idea/
+*.iml

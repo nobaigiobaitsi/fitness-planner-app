@@ -1,5 +1,6 @@
 import Constants from 'expo-constants';
-import { Alert, StyleSheet, Text, View } from 'react-native';
+import { router } from 'expo-router';
+import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackHeader } from '@/components/AppHeader';
 import { AppIcon } from '@/components/AppIcon';
@@ -50,6 +51,35 @@ const confirmDeleteAllData = () => {
         </View>
       </SurfaceCard>
       <Button label="Delete all data" icon="delete" variant="danger" disabled={!hasUserData} onPress={confirmDeleteAllData} />
+
+      <SectionHeader title="Legal & safety" />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Open health and exercise disclaimer"
+        accessibilityHint="Shows important safety and medical guidance"
+        onPress={() => router.push('/disclaimer')}
+        style={({ pressed }) => pressed && styles.pressed}>
+        <SurfaceCard style={styles.legalCard}>
+          <View style={styles.dataIcon}>
+            <AppIcon name="info" color={colors.primary} size={22} />
+          </View>
+
+          <View style={styles.dataCopy}>
+            <Text style={styles.settingTitle}>
+              Health & exercise disclaimer
+            </Text>
+            <Text style={styles.settingDescription}>
+              Read important safety and medical guidance before training.
+            </Text>
+          </View>
+
+          <AppIcon
+            name="chevronRight"
+            color={colors.inkMuted}
+            size={20}
+          />
+        </SurfaceCard>
+      </Pressable>
 
       <SectionHeader title="About" />
       <SurfaceCard style={styles.aboutCard}>
@@ -121,5 +151,14 @@ const styles = StyleSheet.create({
     color: colors.inkMuted,
     fontSize: typography.caption,
     marginTop: 3,
+  },
+  legalCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    padding: spacing.md,
+  },
+  pressed: {
+    opacity: 0.65,
   },
 });

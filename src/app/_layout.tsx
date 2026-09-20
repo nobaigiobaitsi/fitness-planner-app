@@ -29,6 +29,7 @@ function RootNavigator() {
         <Stack.Screen name="workout/[id]/add-exercise" options={{ presentation: 'modal' }} />
         <Stack.Screen name="session/[id]" options={{ gestureEnabled: false }} />
         <Stack.Screen name="settings" />
+        <Stack.Screen name="disclaimer" />
       </Stack>
     </>
   );

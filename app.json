@@ -8,11 +8,11 @@
     "scheme": "fitplanner",
     "userInterfaceStyle": "light",
     "ios": {
-      "bundleIdentifier": "com.fitplanner.app",
+      "bundleIdentifier": "com.stavrosangelopoulos.fitplanner",
       "supportsTablet": false
     },
     "android": {
-      "package": "com.fitplanner.app",
+      "package": "com.stavrosangelopoulos.fitplanner",
       "versionCode": 1,
       "allowBackup": false,
       "adaptiveIcon": {
@@ -21,7 +21,13 @@
         "backgroundImage": "./assets/images/android-FitPlanner-background.png",
         "monochromeImage": "./assets/images/android-FitPlanner-monochrome.png"
       },
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ]
     },
     "web": {
       "output": "static",

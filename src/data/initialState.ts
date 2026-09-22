@@ -5,5 +5,6 @@ export function createInitialState(): AppState {
     workouts: [],
     favoriteExerciseIds: [],
     history: [],
+    activeSession: null,
   };
 }

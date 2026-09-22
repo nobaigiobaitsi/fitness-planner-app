@@ -42,7 +42,8 @@
           "image": "./assets/images/android-FitPlanner-foreground.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      "expo-image"
     ],
     "experiments": {
       "typedRoutes": true,

@@ -1,6 +1,6 @@
-import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from 'expo-router';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, AppState as NativeAppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppIcon } from '@/components/AppIcon';
 import { Button } from '@/components/Buttons';
@@ -18,29 +18,81 @@ function getParam(value: string | string[] | undefined) {
 export default function WorkoutSessionScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const workoutId = getParam(params.id) ?? '';
-  const { state, completeWorkout } = useAppStore();
+  const navigation = useNavigation();
+  const { state, startSession, toggleSessionSet, checkpointSession, discardSession, completeWorkout } = useAppStore();
   const workout = state.workouts.find((item) => item.id === workoutId);
-  const startedAt = useRef(Date.now());
-  const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [completed, setCompleted] = useState<Record<string, boolean[]>>(() =>
-    Object.fromEntries((workout?.exercises ?? []).map((item) => [item.id, Array(item.sets).fill(false)])),
-  );
+  const session = state.activeSession?.workoutId === workoutId ? state.activeSession : null;
+  const allowExit = useRef(false);
+  const promptVisible = useRef(false);
+  const finishing = useRef(false);
+  const clock = useRef({ base: 0, resumedAt: Date.now() });
+  const [elapsedSeconds, setElapsedSeconds] = useState(session?.elapsedSeconds ?? 0);
 
   useEffect(() => {
+    if (workout && !state.activeSession && workout.exercises.length && !allowExit.current) startSession(workoutId);
+  }, [startSession, state.activeSession, workout, workoutId]);
+
+  useEffect(() => {
+    if (!session) return;
+    clock.current = { base: session.elapsedSeconds, resumedAt: Date.now() };
+    setElapsedSeconds(session.elapsedSeconds);
+    const currentElapsed = () => clock.current.base + Math.floor((Date.now() - clock.current.resumedAt) / 1000);
     const interval = setInterval(() => {
-      setElapsedSeconds(Math.floor((Date.now() - startedAt.current) / 1000));
+      const seconds = currentElapsed();
+      setElapsedSeconds(seconds);
+      if (seconds > session.elapsedSeconds && seconds % 10 === 0) checkpointSession(workoutId, seconds);
     }, 1000);
-    return () => clearInterval(interval);
-  }, []);
+    const subscription = NativeAppState.addEventListener('change', (status) => {
+      if (status !== 'active') checkpointSession(workoutId, currentElapsed());
+    });
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [checkpointSession, session?.workoutId, workoutId]);
+
+  const showLeavePrompt = useCallback((leave: () => void) => {
+    if (promptVisible.current) return;
+    promptVisible.current = true;
+    Alert.alert('Leave workout?', 'Set progress from this active session will be discarded.', [
+      { text: 'Keep training', style: 'cancel', onPress: () => { promptVisible.current = false; } },
+      {
+        text: 'Leave',
+        style: 'destructive',
+        onPress: () => {
+          allowExit.current = true;
+          discardSession(workoutId);
+          leave();
+        },
+      },
+    ], { cancelable: true, onDismiss: () => { promptVisible.current = false; } });
+  }, [discardSession, workoutId]);
+
+  useEffect(() => {
+    if (!session) return;
+    const removeListener = navigation.addListener('beforeRemove', (event) => {
+      if (allowExit.current) return;
+      event.preventDefault();
+      showLeavePrompt(() => navigation.dispatch(event.data.action));
+    });
+    const backListener = BackHandler.addEventListener('hardwareBackPress', () => {
+      showLeavePrompt(() => router.back());
+      return true;
+    });
+    return () => {
+      removeListener();
+      backListener.remove();
+    };
+  }, [navigation, session?.workoutId, showLeavePrompt]);
 
   const counts = useMemo(() => {
     const total = workout?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
-    const done = Object.values(completed).reduce(
+    const done = Object.values(session?.completed ?? {}).reduce(
       (sum, sets) => sum + sets.filter(Boolean).length,
       0,
     );
     return { total, done };
-  }, [completed, workout?.exercises]);
+  }, [session?.completed, workout?.exercises]);
 
   if (!workout) {
     return (
@@ -56,23 +108,54 @@ export default function WorkoutSessionScreen() {
     );
   }
 
+  if (!workout.exercises.length) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="exercise"
+          title="Add exercises first"
+          message="Build this workout before starting a session."
+          actionLabel="Edit workout"
+          onAction={() => router.replace(`/workout/${workoutId}`)}
+        />
+      </Screen>
+    );
+  }
+
+  if (state.activeSession && !session) {
+    return (
+      <Screen>
+        <EmptyState
+          icon="clock"
+          title="Workout already in progress"
+          message="Resume or finish your current workout before starting another one."
+          actionLabel="Resume workout"
+          onAction={() => router.replace(`/session/${state.activeSession?.workoutId}`)}
+        />
+      </Screen>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Screen>
+        <EmptyState icon="clock" title="Preparing workout" message="Loading your workout session…" />
+      </Screen>
+    );
+  }
+
   const toggleSet = (itemId: string, setIndex: number) => {
-    setCompleted((current) => ({
-      ...current,
-      [itemId]: (current[itemId] ?? []).map((isDone, index) =>
-        index === setIndex ? !isDone : isDone,
-      ),
-    }));
+    toggleSessionSet(workoutId, itemId, setIndex, elapsedSeconds);
   };
 
   const leaveSession = () => {
-    Alert.alert('Leave workout?', 'Set progress from this active session will be discarded.', [
-      { text: 'Keep training', style: 'cancel' },
-      { text: 'Leave', style: 'destructive', onPress: () => router.back() },
-    ]);
+    showLeavePrompt(() => router.back());
   };
 
   const saveSession = () => {
+    if (finishing.current) return;
+    finishing.current = true;
+    allowExit.current = true;
     completeWorkout(workout.id, Math.max(1, Math.round(elapsedSeconds / 60)), counts.done);
     router.replace('/');
   };
@@ -159,7 +242,7 @@ export default function WorkoutSessionScreen() {
               </View>
 
               {Array.from({ length: item.sets }, (_, setIndex) => {
-                const isDone = completed[item.id]?.[setIndex] ?? false;
+                const isDone = session.completed[item.id]?.[setIndex] ?? false;
                 return (
                   <Pressable
                     key={`${item.id}-${setIndex}`}

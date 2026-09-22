@@ -1,6 +1,6 @@
 import { router } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { FlatList, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/AppHeader';
 import { ExerciseCard } from '@/components/ExerciseCard';
@@ -14,6 +14,10 @@ import { colors, spacing, typography } from '@/theme/tokens';
 import { MuscleGroup, muscleGroups } from '@/types/domain';
 
 type Filter = 'All' | 'Favorites' | MuscleGroup;
+
+function ListSeparator() {
+  return <View style={styles.separator} />;
+}
 
 export default function ExercisesScreen() {
   const { state, toggleFavorite } = useAppStore();
@@ -40,7 +44,7 @@ export default function ExercisesScreen() {
   }, [filter, query, state.favoriteExerciseIds]);
 
   return (
-    <Screen>
+    <Screen scroll={false} contentContainerStyle={styles.screen}>
       <AppHeader title="Exercise library" eyebrow={`${exercises.length} guided movements`} />
       <SearchField value={query} onChangeText={setQuery} placeholder="Search exercise, muscle, equipment" />
 
@@ -56,35 +60,46 @@ export default function ExercisesScreen() {
         {filteredExercises.length} {filteredExercises.length === 1 ? 'exercise' : 'exercises'}
       </Text>
 
-      {filteredExercises.length ? (
-        <View style={styles.list}>
-          {filteredExercises.map((exercise) => (
-            <ExerciseCard
-              key={exercise.id}
-              exercise={exercise}
-              favorite={state.favoriteExerciseIds.includes(exercise.id)}
-              onPress={() => router.push(`/exercise/${exercise.id}`)}
-              onToggleFavorite={() => toggleFavorite(exercise.id)}
-            />
-          ))}
-        </View>
-      ) : (
-        <EmptyState
-          icon="search"
-          title="No exercises found"
-          message="Try another search term or choose a different muscle group."
-          actionLabel="Clear filters"
-          onAction={() => {
-            setQuery('');
-            setFilter('All');
-          }}
-        />
-      )}
+      <FlatList
+        data={filteredExercises}
+        style={styles.listView}
+        keyExtractor={(exercise) => exercise.id}
+        renderItem={({ item: exercise }) => (
+          <ExerciseCard
+            exercise={exercise}
+            favorite={state.favoriteExerciseIds.includes(exercise.id)}
+            onPress={() => router.push(`/exercise/${exercise.id}`)}
+            onToggleFavorite={() => toggleFavorite(exercise.id)}
+          />
+        )}
+        ItemSeparatorComponent={ListSeparator}
+        ListEmptyComponent={
+          <EmptyState
+            icon="search"
+            title="No exercises found"
+            message="Try another search term or choose a different muscle group."
+            actionLabel="Clear filters"
+            onAction={() => {
+              setQuery('');
+              setFilter('All');
+            }}
+          />
+        }
+        initialNumToRender={8}
+        maxToRenderPerBatch={8}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.list, !filteredExercises.length && styles.emptyList]}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    paddingBottom: 0,
+  },
   filters: {
     marginTop: spacing.md,
   },
@@ -96,6 +111,16 @@ const styles = StyleSheet.create({
     marginBottom: spacing.sm,
   },
   list: {
-    gap: spacing.sm,
+    paddingBottom: 120,
+  },
+  listView: {
+    flex: 1,
+  },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  separator: {
+    height: spacing.sm,
   },
 });

@@ -1,7 +1,7 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useMemo, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { BackHeader } from '@/components/AppHeader';
 import { AppIcon } from '@/components/AppIcon';
@@ -17,14 +17,14 @@ function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
 }
 
+function ListSeparator() {
+  return <View style={styles.separator} />;
+}
+
 export default function AddExerciseScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const workoutId = getParam(params.id) ?? '';
-  const {
-  state,
-  addExerciseToWorkout,
-  removeExerciseFromWorkout,
-  } = useAppStore();
+  const { state, addExerciseToWorkout, removeExerciseFromWorkout } = useAppStore();
   const [query, setQuery] = useState('');
   const workout = state.workouts.find((item) => item.id === workoutId);
 
@@ -49,6 +49,8 @@ export default function AddExerciseScreen() {
 
   return (
     <Screen
+      scroll={false}
+      contentContainerStyle={styles.screen}
       footer={
         <View style={styles.footer}>
           <Button
@@ -57,32 +59,40 @@ export default function AddExerciseScreen() {
             onPress={() => router.back()}
           />
         </View>
-      }> 
+      }>
       <BackHeader title={`Add to ${workout.name}`} />
       <SearchField value={query} onChangeText={setQuery} placeholder="Search exercises" />
-      <Text style={styles.helper}>You can add several exercises before returning to your workout. Your selections are saved automatically. Tap Done when finished.</Text>
+      <Text style={styles.helper}>
+        You can add several exercises before returning to your workout. Your selections are saved
+        automatically. Tap Done when finished.
+      </Text>
 
-      <View style={styles.list}>
-        {results.map((exercise) => {
+      <FlatList
+        data={results}
+        style={styles.listView}
+        keyExtractor={(exercise) => exercise.id}
+        renderItem={({ item: exercise }) => {
           const workoutExercise = workout.exercises.find(
             (item) => item.exerciseId === exercise.id,
           );
-
           const added = Boolean(workoutExercise);
 
           const toggleExercise = () => {
             if (workoutExercise) {
-              removeExerciseFromWorkout(
-                workout.id,
-                workoutExercise.id,
-            ); 
-            return;
-          }
-          addExerciseToWorkout(workout.id, exercise.id);
-        };
+              removeExerciseFromWorkout(workout.id, workoutExercise.id);
+              return;
+            }
+            addExerciseToWorkout(workout.id, exercise.id);
+          };
+
           return (
-            <View key={exercise.id} style={styles.row}>
-              <Image source={exercise.imageSource} contentFit="cover" transition={150} style={styles.image} />
+            <View style={styles.row}>
+              <Image
+                source={exercise.imageSource}
+                contentFit="cover"
+                transition={150}
+                style={styles.image}
+              />
               <View style={styles.copy}>
                 <Text style={styles.name}>{exercise.name}</Text>
                 <Text style={styles.meta}>
@@ -91,34 +101,49 @@ export default function AddExerciseScreen() {
               </View>
               <Pressable
                 accessibilityRole="button"
-                accessibilityLabel={added ? `${exercise.name} already added` : `Add ${exercise.name}`}
+                accessibilityLabel={
+                  added ? `Remove ${exercise.name} from workout` : `Add ${exercise.name} to workout`
+                }
                 onPress={toggleExercise}
                 style={({ pressed }) => [
                   styles.addButton,
                   added && styles.addedButton,
                   pressed && styles.pressed,
                 ]}>
-                <AppIcon name={added ? 'check' : 'add'} color={added ? colors.primary : colors.white} size={19} />
+                <AppIcon
+                  name={added ? 'check' : 'add'}
+                  color={added ? colors.primary : colors.white}
+                  size={19}
+                />
               </Pressable>
             </View>
           );
-        })}
-      </View>
-
-      {!results.length ? (
-        <EmptyState
-          icon="search"
-          title="No exercises found"
-          message="Try a shorter exercise or muscle name."
-          actionLabel="Clear search"
-          onAction={() => setQuery('')}
-        />
-      ) : null}
+        }}
+        ItemSeparatorComponent={ListSeparator}
+        ListEmptyComponent={
+          <EmptyState
+            icon="search"
+            title="No exercises found"
+            message="Try a shorter exercise or muscle name."
+            actionLabel="Clear search"
+            onAction={() => setQuery('')}
+          />
+        }
+        initialNumToRender={10}
+        maxToRenderPerBatch={10}
+        windowSize={7}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={[styles.list, !results.length && styles.emptyList]}
+      />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
+  screen: {
+    paddingBottom: 0,
+  },
   helper: {
     color: colors.inkMuted,
     fontSize: typography.caption,
@@ -127,7 +152,17 @@ const styles = StyleSheet.create({
     marginBottom: spacing.lg,
   },
   list: {
-    gap: spacing.sm,
+    paddingBottom: spacing.lg,
+  },
+  listView: {
+    flex: 1,
+  },
+  emptyList: {
+    flexGrow: 1,
+    justifyContent: 'center',
+  },
+  separator: {
+    height: spacing.sm,
   },
   row: {
     minHeight: 78,
@@ -174,14 +209,14 @@ const styles = StyleSheet.create({
     opacity: 0.62,
   },
   footer: {
-  width: '100%',
-  maxWidth: 760,
-  alignSelf: 'center',
-  paddingHorizontal: spacing.lg,
-  paddingTop: spacing.sm,
-  paddingBottom: spacing.md,
-  borderTopWidth: 1,
-  borderTopColor: colors.border,
-  backgroundColor: colors.surface,
-},
+    width: '100%',
+    maxWidth: 760,
+    alignSelf: 'center',
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.sm,
+    paddingBottom: spacing.md,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+    backgroundColor: colors.surface,
+  },
 });

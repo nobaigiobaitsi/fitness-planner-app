@@ -6,7 +6,7 @@ on:
   pull_request:
 
 jobs:
-  typecheck:
+  validate:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository
@@ -24,6 +24,11 @@ jobs:
       - name: Type-check
         run: npm run check
 
-      - name: Verify Android production bundle
-        run: npx expo export --platform android --output-dir dist-android
+      - name: Check Expo project health
+        run: npx expo-doctor
 
+      - name: Verify Android production bundle
+        run: npx expo export --platform android --output-dir dist/android
+
+      - name: Verify iOS production bundle
+        run: npx expo export --platform ios --output-dir dist/ios

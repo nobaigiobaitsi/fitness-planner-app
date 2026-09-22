@@ -75,8 +75,15 @@ export type WorkoutLog = {
   exerciseCount: number;
 };
 
+export type ActiveSession = {
+  workoutId: string;
+  elapsedSeconds: number;
+  completed: Record<string, boolean[]>;
+};
+
 export type AppState = {
   workouts: WorkoutPlan[];
   favoriteExerciseIds: string[];
   history: WorkoutLog[];
+  activeSession: ActiveSession | null;
 };

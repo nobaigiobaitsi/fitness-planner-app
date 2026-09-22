@@ -57,6 +57,7 @@ function QuickAction({
 export default function HomeScreen() {
   const { state, storageError } = useAppStore();
   const next = getNextWorkout(state.workouts);
+  const resumableWorkout = state.workouts.find((item) => item.id === state.activeSession?.workoutId);
   const weekLogs = getSevenDayLogs(state.history);
   const weekMinutes = weekLogs.reduce((total, log) => total + log.durationMinutes, 0);
   const weekSets = weekLogs.reduce((total, log) => total + log.completedSets, 0);
@@ -75,6 +76,18 @@ export default function HomeScreen() {
 
       {storageError ? (
         <InlineNotice>Your latest changes could not be saved on this device.</InlineNotice>
+      ) : null}
+
+      {resumableWorkout ? (
+        <SurfaceCard style={styles.resumeCard}>
+          <Text style={styles.resumeTitle}>Workout in progress</Text>
+          <Text style={styles.resumeDescription}>{resumableWorkout.name}</Text>
+          <Button
+            label="Resume workout"
+            icon="play"
+            onPress={() => router.push(`/session/${resumableWorkout.id}`)}
+          />
+        </SurfaceCard>
       ) : null}
 
       {next ? (
@@ -163,6 +176,19 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
+  resumeCard: {
+    gap: spacing.sm,
+    marginBottom: spacing.md,
+  },
+  resumeTitle: {
+    color: colors.ink,
+    fontSize: typography.heading,
+    fontWeight: '800',
+  },
+  resumeDescription: {
+    color: colors.inkMuted,
+    fontSize: typography.body,
+  },
   headerAction: {
     width: 46,
     height: 46,

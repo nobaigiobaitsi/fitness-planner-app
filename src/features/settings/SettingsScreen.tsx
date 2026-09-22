@@ -12,17 +12,19 @@ import { useAppStore } from '@/store/AppStore';
 import { colors, spacing, typography } from '@/theme/tokens';
 
 export default function SettingsScreen() {
-  const { state, deleteAllData } = useAppStore();
+  const { state, storageLoadFailed, deleteAllData } = useAppStore();
 
   const hasUserData =
   state.workouts.length > 0 ||
   state.favoriteExerciseIds.length > 0 ||
-  state.history.length > 0;
+  state.history.length > 0 ||
+  state.activeSession !== null ||
+  storageLoadFailed;
 
 const confirmDeleteAllData = () => {
   Alert.alert(
     'Delete all data?',
-    'This permanently removes all workouts, favorites, and workout history stored on this device.',
+    'This permanently removes all workouts, favorites, active sessions, and workout history stored on this device, including saved data that could not be loaded.',
     [
       { text: 'Cancel', style: 'cancel' },
       {
@@ -50,6 +52,11 @@ const confirmDeleteAllData = () => {
           </Text>
         </View>
       </SurfaceCard>
+      {storageLoadFailed ? (
+        <Text style={styles.storageWarning}>
+          Saved data could not be read. It has not been overwritten. Deleting all data will reset the app and cannot be undone.
+        </Text>
+      ) : null}
       <Button label="Delete all data" icon="delete" variant="danger" disabled={!hasUserData} onPress={confirmDeleteAllData} />
 
       <SectionHeader title="Legal & safety" />
@@ -96,6 +103,12 @@ const confirmDeleteAllData = () => {
 }
 
 const styles = StyleSheet.create({
+  storageWarning: {
+    color: colors.danger,
+    fontSize: typography.caption,
+    lineHeight: 18,
+    marginBottom: spacing.md,
+  },
   settingTitle: {
     color: colors.ink,
     fontSize: typography.body,

@@ -1,26 +1,36 @@
 export const muscleGroups = [
-  'Chest',
-  'Back',
-  'Legs',
-  'Shoulders',
-  'Arms',
-  'Core',
-  'Full Body',
+  "Chest",
+  "Back",
+  "Legs",
+  "Shoulders",
+  "Arms",
+  "Core",
+  "Full Body",
 ] as const;
 
 export type MuscleGroup = (typeof muscleGroups)[number];
 
 export type Equipment =
-  | 'Barbell'
-  | 'Dumbbells'
-  | 'Bodyweight'
-  | 'Cable'
-  | 'Machine'
-  | 'Bench'
-  | 'Kettlebell'
-  | 'Resistance Band';
+  | "Barbell"
+  | "Dumbbells"
+  | "Bodyweight"
+  | "Cable"
+  | "Machine"
+  | "Bench"
+  | "Kettlebell"
+  | "Resistance Band"
+  | "Ab Wheel"
+  | "Battle Ropes"
+  | "Box"
+  | "Gymnastic Rings"
+  | "Jump Rope"
+  | "Medicine Ball"
+  | "Sled"
+  | "Stability Ball"
+  | "Suspension Trainer"
+  | "Weight Plate";
 
-export type Difficulty = 'Beginner' | 'Intermediate' | 'Advanced';
+export type Difficulty = "Beginner" | "Intermediate" | "Advanced";
 
 export type Exercise = {
   id: string;
@@ -35,13 +45,13 @@ export type Exercise = {
 };
 
 export const dayKeys = [
-  'monday',
-  'tuesday',
-  'wednesday',
-  'thursday',
-  'friday',
-  'saturday',
-  'sunday',
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+  "sunday",
 ] as const;
 
 export type DayKey = (typeof dayKeys)[number];

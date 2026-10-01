@@ -1,34 +1,35 @@
-import { Image } from 'expo-image';
-import { StatusBar } from 'expo-status-bar';
-import { useEffect } from 'react';
+import { Image } from "expo-image";
+import { StatusBar } from "expo-status-bar";
+import { useEffect } from "react";
 import {
-    Modal,
-    Pressable,
-    StyleSheet,
-    Text,
-    useWindowDimensions,
-    View,
-} from 'react-native';
+  Modal,
+  Pressable,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import {
-    Gesture,
-    GestureDetector,
-} from 'react-native-gesture-handler';
+  Gesture,
+  GestureDetector,
+  GestureHandlerRootView,
+} from "react-native-gesture-handler";
 import Animated, {
-    useAnimatedStyle,
-    useSharedValue,
-    withTiming,
-} from 'react-native-reanimated';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from "react-native-reanimated";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { AppIcon } from '@/components/AppIcon';
-import { colors, spacing, typography } from '@/theme/tokens';
+import { AppIcon } from "@/components/AppIcon";
+import { colors, spacing, typography } from "@/theme/tokens";
 
 const MIN_SCALE = 1;
 const DOUBLE_TAP_SCALE = 2;
 const MAX_SCALE = 4;
 
 function clamp(value: number, minimum: number, maximum: number) {
-  'worklet';
+  "worklet";
 
   return Math.min(Math.max(value, minimum), maximum);
 }
@@ -80,7 +81,7 @@ export function ZoomableImageModal({
   ]);
 
   const resetZoom = () => {
-    'worklet';
+    "worklet";
 
     scale.value = withTiming(MIN_SCALE);
     savedScale.value = MIN_SCALE;
@@ -94,11 +95,7 @@ export function ZoomableImageModal({
 
   const pinchGesture = Gesture.Pinch()
     .onUpdate((event) => {
-      scale.value = clamp(
-        savedScale.value * event.scale,
-        MIN_SCALE,
-        MAX_SCALE,
-      );
+      scale.value = clamp(savedScale.value * event.scale, MIN_SCALE, MAX_SCALE);
     })
     .onEnd(() => {
       if (scale.value <= MIN_SCALE) {
@@ -111,17 +108,9 @@ export function ZoomableImageModal({
       const maximumX = (width * (scale.value - 1)) / 2;
       const maximumY = (height * (scale.value - 1)) / 2;
 
-      const nextX = clamp(
-        translateX.value,
-        -maximumX,
-        maximumX,
-      );
+      const nextX = clamp(translateX.value, -maximumX, maximumX);
 
-      const nextY = clamp(
-        translateY.value,
-        -maximumY,
-        maximumY,
-      );
+      const nextY = clamp(translateY.value, -maximumY, maximumY);
 
       translateX.value = withTiming(nextX);
       translateY.value = withTiming(nextY);
@@ -202,13 +191,13 @@ export function ZoomableImageModal({
       onRequestClose={close}
       statusBarTranslucent
       transparent
-      visible={visible}>
-      <View accessibilityViewIsModal style={styles.backdrop}>
+      visible={visible}
+    >
+      <GestureHandlerRootView accessibilityViewIsModal style={styles.backdrop}>
         <StatusBar style="light" />
 
         <GestureDetector gesture={gesture}>
-          <Animated.View
-            style={[styles.imageCanvas, animatedImageStyle]}>
+          <Animated.View style={[styles.imageCanvas, animatedImageStyle]}>
             <Image
               accessibilityLabel={`${title} exercise demonstration`}
               allowDownscaling={false}
@@ -221,14 +210,9 @@ export function ZoomableImageModal({
 
         <View
           pointerEvents="box-none"
-          style={[
-            styles.topBar,
-            { paddingTop: insets.top + spacing.sm },
-          ]}>
-          <Text
-            numberOfLines={1}
-            pointerEvents="none"
-            style={styles.title}>
+          style={[styles.topBar, { paddingTop: insets.top + spacing.sm }]}
+        >
+          <Text numberOfLines={1} pointerEvents="none" style={styles.title}>
             {title}
           </Text>
 
@@ -240,24 +224,19 @@ export function ZoomableImageModal({
             style={({ pressed }) => [
               styles.closeButton,
               pressed && styles.pressed,
-            ]}>
-            <AppIcon
-              color={colors.white}
-              name="close"
-              size={24}
-            />
+            ]}
+          >
+            <AppIcon color={colors.white} name="close" size={24} />
           </Pressable>
         </View>
 
         <Text
           pointerEvents="none"
-          style={[
-            styles.hint,
-            { bottom: insets.bottom + spacing.lg },
-          ]}>
+          style={[styles.hint, { bottom: insets.bottom + spacing.lg }]}
+        >
           Pinch to zoom · drag to move · double-tap to reset
         </Text>
-      </View>
+      </GestureHandlerRootView>
     </Modal>
   );
 }
@@ -269,49 +248,49 @@ const styles = StyleSheet.create({
   },
   imageCanvas: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
   image: {
     flex: 1,
-    width: '100%',
+    width: "100%",
   },
   topBar: {
-    position: 'absolute',
+    position: "absolute",
     top: 0,
     left: 0,
     right: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.md,
     paddingHorizontal: spacing.md,
     paddingBottom: spacing.sm,
-    backgroundColor: 'rgba(0, 0, 0, 0.38)',
+    backgroundColor: "rgba(0, 0, 0, 0.38)",
   },
   title: {
     flex: 1,
     color: colors.white,
     fontSize: typography.body,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   closeButton: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(255, 255, 255, 0.16)",
   },
   hint: {
-    position: 'absolute',
-    alignSelf: 'center',
+    position: "absolute",
+    alignSelf: "center",
     color: colors.white,
     fontSize: typography.caption,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
     borderRadius: 999,
-    backgroundColor: 'rgba(0, 0, 0, 0.56)',
+    backgroundColor: "rgba(0, 0, 0, 0.56)",
   },
   pressed: {
     opacity: 0.65,

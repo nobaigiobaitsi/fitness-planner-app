@@ -1,15 +1,27 @@
-import { router, useLocalSearchParams, useNavigation } from 'expo-router';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, AppState as NativeAppState, BackHandler, Pressable, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams, useNavigation } from "expo-router";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Alert,
+  BackHandler,
+  AppState as NativeAppState,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import { AppIcon } from '@/components/AppIcon';
-import { Button } from '@/components/Buttons';
-import { EmptyState } from '@/components/EmptyState';
-import { Screen } from '@/components/Screen';
-import { getExerciseById } from '@/data/exercises';
-import { useAppStore } from '@/store/AppStore';
-import { colors, radii, spacing, typography } from '@/theme/tokens';
-import { displayWeight, formatElapsed, secondsToRestLabel } from '@/utils/format';
+import { AppIcon } from "@/components/AppIcon";
+import { Button } from "@/components/Buttons";
+import { EmptyState } from "@/components/EmptyState";
+import { Screen } from "@/components/Screen";
+import { getExerciseById } from "@/data/exercises";
+import { useAppStore } from "@/store/AppStore";
+import { colors, radii, spacing, typography } from "@/theme/tokens";
+import {
+  displayWeight,
+  formatElapsed,
+  secondsToRestLabel,
+} from "@/utils/format";
 
 function getParam(value: string | string[] | undefined) {
   return Array.isArray(value) ? value[0] : value;
@@ -17,33 +29,52 @@ function getParam(value: string | string[] | undefined) {
 
 export default function WorkoutSessionScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
-  const workoutId = getParam(params.id) ?? '';
+  const workoutId = getParam(params.id) ?? "";
   const navigation = useNavigation();
-  const { state, startSession, toggleSessionSet, checkpointSession, discardSession, completeWorkout } = useAppStore();
+  const {
+    state,
+    startSession,
+    toggleSessionSet,
+    checkpointSession,
+    discardSession,
+    completeWorkout,
+  } = useAppStore();
   const workout = state.workouts.find((item) => item.id === workoutId);
-  const session = state.activeSession?.workoutId === workoutId ? state.activeSession : null;
+  const session =
+    state.activeSession?.workoutId === workoutId ? state.activeSession : null;
   const allowExit = useRef(false);
   const promptVisible = useRef(false);
   const finishing = useRef(false);
   const clock = useRef({ base: 0, resumedAt: Date.now() });
-  const [elapsedSeconds, setElapsedSeconds] = useState(session?.elapsedSeconds ?? 0);
+  const [elapsedSeconds, setElapsedSeconds] = useState(
+    session?.elapsedSeconds ?? 0,
+  );
 
   useEffect(() => {
-    if (workout && !state.activeSession && workout.exercises.length && !allowExit.current) startSession(workoutId);
+    if (
+      workout &&
+      !state.activeSession &&
+      workout.exercises.length &&
+      !allowExit.current
+    )
+      startSession(workoutId);
   }, [startSession, state.activeSession, workout, workoutId]);
 
   useEffect(() => {
     if (!session) return;
     clock.current = { base: session.elapsedSeconds, resumedAt: Date.now() };
     setElapsedSeconds(session.elapsedSeconds);
-    const currentElapsed = () => clock.current.base + Math.floor((Date.now() - clock.current.resumedAt) / 1000);
+    const currentElapsed = () =>
+      clock.current.base +
+      Math.floor((Date.now() - clock.current.resumedAt) / 1000);
     const interval = setInterval(() => {
       const seconds = currentElapsed();
       setElapsedSeconds(seconds);
-      if (seconds > session.elapsedSeconds && seconds % 10 === 0) checkpointSession(workoutId, seconds);
+      if (seconds > session.elapsedSeconds && seconds % 10 === 0)
+        checkpointSession(workoutId, seconds);
     }, 1000);
-    const subscription = NativeAppState.addEventListener('change', (status) => {
-      if (status !== 'active') checkpointSession(workoutId, currentElapsed());
+    const subscription = NativeAppState.addEventListener("change", (status) => {
+      if (status !== "active") checkpointSession(workoutId, currentElapsed());
     });
     return () => {
       clearInterval(interval);
@@ -51,34 +82,57 @@ export default function WorkoutSessionScreen() {
     };
   }, [checkpointSession, session?.workoutId, workoutId]);
 
-  const showLeavePrompt = useCallback((leave: () => void) => {
-    if (promptVisible.current) return;
-    promptVisible.current = true;
-    Alert.alert('Leave workout?', 'Set progress from this active session will be discarded.', [
-      { text: 'Keep training', style: 'cancel', onPress: () => { promptVisible.current = false; } },
-      {
-        text: 'Leave',
-        style: 'destructive',
-        onPress: () => {
-          allowExit.current = true;
-          discardSession(workoutId);
-          leave();
+  const showLeavePrompt = useCallback(
+    (leave: () => void) => {
+      if (promptVisible.current) return;
+      promptVisible.current = true;
+      Alert.alert(
+        "Leave workout?",
+        "Set progress from this active session will be discarded.",
+        [
+          {
+            text: "Keep training",
+            style: "cancel",
+            onPress: () => {
+              promptVisible.current = false;
+            },
+          },
+          {
+            text: "Leave",
+            style: "destructive",
+            onPress: () => {
+              allowExit.current = true;
+              discardSession(workoutId);
+              leave();
+            },
+          },
+        ],
+        {
+          cancelable: true,
+          onDismiss: () => {
+            promptVisible.current = false;
+          },
         },
-      },
-    ], { cancelable: true, onDismiss: () => { promptVisible.current = false; } });
-  }, [discardSession, workoutId]);
+      );
+    },
+    [discardSession, workoutId],
+  );
 
   useEffect(() => {
     if (!session) return;
-    const removeListener = navigation.addListener('beforeRemove', (event) => {
+    const removeListener = navigation.addListener("beforeRemove", (event) => {
       if (allowExit.current) return;
       event.preventDefault();
       showLeavePrompt(() => navigation.dispatch(event.data.action));
     });
-    const backListener = BackHandler.addEventListener('hardwareBackPress', () => {
-      showLeavePrompt(() => router.back());
-      return true;
-    });
+    const backListener = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        if (!navigation.isFocused()) return false;
+        showLeavePrompt(() => router.back());
+        return true;
+      },
+    );
     return () => {
       removeListener();
       backListener.remove();
@@ -86,7 +140,8 @@ export default function WorkoutSessionScreen() {
   }, [navigation, session?.workoutId, showLeavePrompt]);
 
   const counts = useMemo(() => {
-    const total = workout?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
+    const total =
+      workout?.exercises.reduce((sum, item) => sum + item.sets, 0) ?? 0;
     const done = Object.values(session?.completed ?? {}).reduce(
       (sum, sets) => sum + sets.filter(Boolean).length,
       0,
@@ -102,7 +157,7 @@ export default function WorkoutSessionScreen() {
           title="Workout unavailable"
           message="This workout is no longer in your weekly plan."
           actionLabel="Return home"
-          onAction={() => router.replace('/')}
+          onAction={() => router.replace("/")}
         />
       </Screen>
     );
@@ -130,7 +185,9 @@ export default function WorkoutSessionScreen() {
           title="Workout already in progress"
           message="Resume or finish your current workout before starting another one."
           actionLabel="Resume workout"
-          onAction={() => router.replace(`/session/${state.activeSession?.workoutId}`)}
+          onAction={() =>
+            router.replace(`/session/${state.activeSession?.workoutId}`)
+          }
         />
       </Screen>
     );
@@ -139,13 +196,22 @@ export default function WorkoutSessionScreen() {
   if (!session) {
     return (
       <Screen>
-        <EmptyState icon="clock" title="Preparing workout" message="Loading your workout session…" />
+        <EmptyState
+          icon="clock"
+          title="Preparing workout"
+          message="Loading your workout session…"
+        />
       </Screen>
     );
   }
 
   const toggleSet = (itemId: string, setIndex: number) => {
     toggleSessionSet(workoutId, itemId, setIndex, elapsedSeconds);
+  };
+
+  const openExerciseDetails = (exerciseId: string) => {
+    checkpointSession(workoutId, elapsedSeconds);
+    router.push(`/exercise/${exerciseId}`);
   };
 
   const leaveSession = () => {
@@ -156,18 +222,22 @@ export default function WorkoutSessionScreen() {
     if (finishing.current) return;
     finishing.current = true;
     allowExit.current = true;
-    completeWorkout(workout.id, Math.max(1, Math.round(elapsedSeconds / 60)), counts.done);
-    router.replace('/');
+    completeWorkout(
+      workout.id,
+      Math.max(1, Math.round(elapsedSeconds / 60)),
+      counts.done,
+    );
+    router.replace("/");
   };
 
   const finishSession = () => {
     if (counts.done < counts.total) {
       Alert.alert(
-        'Finish early?',
+        "Finish early?",
         `You completed ${counts.done} of ${counts.total} sets. The completed sets will still be saved.`,
         [
-          { text: 'Keep training', style: 'cancel' },
-          { text: 'Finish', onPress: saveSession },
+          { text: "Keep training", style: "cancel" },
+          { text: "Finish", onPress: saveSession },
         ],
       );
       return;
@@ -182,19 +252,28 @@ export default function WorkoutSessionScreen() {
       footer={
         <View style={styles.footer}>
           <Button
-            label={counts.done === counts.total ? 'Complete workout' : `Finish · ${counts.done}/${counts.total} sets`}
+            label={
+              counts.done === counts.total
+                ? "Complete workout"
+                : `Finish · ${counts.done}/${counts.total} sets`
+            }
             icon="check"
             onPress={finishSession}
             disabled={!counts.done}
           />
         </View>
-      }>
+      }
+    >
       <View style={styles.header}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel="Leave workout"
           onPress={leaveSession}
-          style={({ pressed }) => [styles.closeButton, pressed && styles.pressed]}>
+          style={({ pressed }) => [
+            styles.closeButton,
+            pressed && styles.pressed,
+          ]}
+        >
           <AppIcon name="close" color={colors.ink} size={22} />
         </Pressable>
         <View style={styles.headerCopy}>
@@ -225,12 +304,38 @@ export default function WorkoutSessionScreen() {
           return (
             <View key={item.id} style={styles.exerciseCard}>
               <View style={styles.exerciseHeading}>
-                <View style={[styles.exerciseNumber, { backgroundColor: workout.accent }]}>
-                  <Text style={styles.exerciseNumberText}>{exerciseIndex + 1}</Text>
+                <View
+                  style={[
+                    styles.exerciseNumber,
+                    { backgroundColor: workout.accent },
+                  ]}
+                >
+                  <Text style={styles.exerciseNumberText}>
+                    {exerciseIndex + 1}
+                  </Text>
                 </View>
                 <View style={styles.exerciseCopy}>
-                  <Text style={styles.exerciseName}>{exercise.name}</Text>
-                  <Text style={styles.exerciseMeta}>{secondsToRestLabel(item.restSeconds)}</Text>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={`View ${exercise.name} details`}
+                    accessibilityHint="Shows the exercise image, instructions, and form tips"
+                    hitSlop={6}
+                    onPress={() => openExerciseDetails(exercise.id)}
+                    style={({ pressed }) => [
+                      styles.exerciseNameButton,
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <Text style={styles.exerciseName}>{exercise.name}</Text>
+                    <AppIcon
+                      name="chevronRight"
+                      color={colors.primaryDark}
+                      size={18}
+                    />
+                  </Pressable>
+                  <Text style={styles.exerciseMeta}>
+                    {secondsToRestLabel(item.restSeconds)}
+                  </Text>
                 </View>
               </View>
 
@@ -238,7 +343,9 @@ export default function WorkoutSessionScreen() {
                 <Text style={[styles.tableHeading, styles.setColumn]}>SET</Text>
                 <Text style={styles.tableHeading}>WEIGHT</Text>
                 <Text style={styles.tableHeading}>REPS</Text>
-                <Text style={[styles.tableHeading, styles.doneColumn]}>DONE</Text>
+                <Text style={[styles.tableHeading, styles.doneColumn]}>
+                  DONE
+                </Text>
               </View>
 
               {Array.from({ length: item.sets }, (_, setIndex) => {
@@ -254,13 +361,26 @@ export default function WorkoutSessionScreen() {
                       styles.setRow,
                       isDone && styles.completedSet,
                       pressed && styles.pressed,
-                    ]}>
-                    <Text style={[styles.setValue, styles.setColumn]}>{setIndex + 1}</Text>
-                    <Text style={styles.setValue}>{displayWeight(item.weightKg)}</Text>
+                    ]}
+                  >
+                    <Text style={[styles.setValue, styles.setColumn]}>
+                      {setIndex + 1}
+                    </Text>
+                    <Text style={styles.setValue}>
+                      {displayWeight(item.weightKg)}
+                    </Text>
                     <Text style={styles.setValue}>{item.reps}</Text>
                     <View style={styles.doneColumn}>
-                      <View style={[styles.checkbox, isDone && styles.checkedBox]}>
-                        {isDone ? <AppIcon name="check" color={colors.white} size={19} /> : null}
+                      <View
+                        style={[styles.checkbox, isDone && styles.checkedBox]}
+                      >
+                        {isDone ? (
+                          <AppIcon
+                            name="check"
+                            color={colors.white}
+                            size={19}
+                          />
+                        ) : null}
                       </View>
                     </View>
                   </Pressable>
@@ -277,8 +397,8 @@ export default function WorkoutSessionScreen() {
 const styles = StyleSheet.create({
   header: {
     minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     marginBottom: spacing.xl,
   },
@@ -286,8 +406,8 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 1,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -298,7 +418,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     color: colors.ink,
     fontSize: typography.heading,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   headerCaption: {
     color: colors.inkMuted,
@@ -308,9 +428,9 @@ const styles = StyleSheet.create({
   timer: {
     minWidth: 78,
     height: 40,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
     gap: 5,
     paddingHorizontal: spacing.sm,
     borderRadius: radii.pill,
@@ -319,13 +439,13 @@ const styles = StyleSheet.create({
   timerText: {
     color: colors.primaryDark,
     fontSize: typography.label,
-    fontWeight: '800',
-    fontVariant: ['tabular-nums'],
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
   },
   progressHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
   },
   progressLabel: {
     color: colors.inkMuted,
@@ -334,17 +454,17 @@ const styles = StyleSheet.create({
   progressValue: {
     color: colors.primary,
     fontSize: typography.label,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   progressTrack: {
     height: 9,
-    overflow: 'hidden',
+    overflow: "hidden",
     borderRadius: radii.pill,
     backgroundColor: colors.surfaceMuted,
     marginTop: spacing.xs,
   },
   progressFill: {
-    height: '100%',
+    height: "100%",
     borderRadius: radii.pill,
     backgroundColor: colors.primary,
   },
@@ -353,7 +473,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.xl,
   },
   exerciseCard: {
-    overflow: 'hidden',
+    overflow: "hidden",
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
@@ -361,8 +481,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   exerciseHeading: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
@@ -370,21 +490,28 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
   },
   exerciseNumberText: {
     color: colors.white,
     fontSize: typography.label,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   exerciseCopy: {
     flex: 1,
   },
+  exerciseNameButton: {
+    minHeight: 36,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.xs,
+  },
   exerciseName: {
-    color: colors.ink,
+    flex: 1,
+    color: colors.primaryDark,
     fontSize: typography.body,
-    fontWeight: '700',
+    fontWeight: "700",
   },
   exerciseMeta: {
     color: colors.inkMuted,
@@ -393,8 +520,8 @@ const styles = StyleSheet.create({
   },
   tableHeader: {
     minHeight: 28,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
@@ -402,40 +529,40 @@ const styles = StyleSheet.create({
     flex: 1,
     color: colors.inkMuted,
     fontSize: 10,
-    fontWeight: '800',
-    textAlign: 'center',
+    fontWeight: "800",
+    textAlign: "center",
     letterSpacing: 0.5,
   },
   setRow: {
     minHeight: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: colors.border,
   },
   completedSet: {
-    backgroundColor: '#F0FAF6',
+    backgroundColor: "#F0FAF6",
   },
   setValue: {
     flex: 1,
     color: colors.ink,
     fontSize: typography.label,
-    fontWeight: '600',
-    textAlign: 'center',
+    fontWeight: "600",
+    textAlign: "center",
   },
   setColumn: {
     flex: 0.55,
   },
   doneColumn: {
     flex: 0.7,
-    alignItems: 'center',
+    alignItems: "center",
   },
   checkbox: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    alignItems: 'center',
-    justifyContent: 'center',
+    alignItems: "center",
+    justifyContent: "center",
     borderWidth: 2,
     borderColor: colors.border,
     backgroundColor: colors.surface,
@@ -445,9 +572,9 @@ const styles = StyleSheet.create({
     backgroundColor: colors.primary,
   },
   footer: {
-    width: '100%',
+    width: "100%",
     maxWidth: 760,
-    alignSelf: 'center',
+    alignSelf: "center",
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.sm,
     paddingBottom: spacing.md,

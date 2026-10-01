@@ -1,10 +1,21 @@
 import { router, useLocalSearchParams } from "expo-router";
-import { Alert, Pressable, StyleSheet, Text, View } from "react-native";
+import { useState } from "react";
+import {
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
 import { BackHeader } from "@/components/AppHeader";
 import { AppIcon } from "@/components/AppIcon";
 import { Button } from "@/components/Buttons";
 import { EmptyState } from "@/components/EmptyState";
+import { LabeledInput } from "@/components/Inputs";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/Section";
 import { getDayLabel } from "@/data/days";
@@ -148,6 +159,83 @@ function ExerciseEditor({
   );
 }
 
+function WorkoutNameEditor({
+  workoutId,
+  name,
+}: {
+  workoutId: string;
+  name: string;
+}) {
+  const { renameWorkout } = useAppStore();
+  const [visible, setVisible] = useState(false);
+  const [draft, setDraft] = useState(name);
+
+  const openEditor = () => {
+    setDraft(name);
+    setVisible(true);
+  };
+
+  const saveName = () => {
+    if (!draft.trim()) return;
+    renameWorkout(workoutId, draft);
+    setVisible(false);
+  };
+
+  return (
+    <>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`Rename ${name}`}
+        accessibilityHint="Opens a field to edit the workout name"
+        onPress={openEditor}
+        style={({ pressed }) => [styles.titleRow, pressed && styles.pressed]}
+      >
+        <Text style={[styles.title, styles.editableTitle]}>{name}</Text>
+        <AppIcon name="edit" color={colors.white} size={20} />
+      </Pressable>
+
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.nameModalOverlay}
+        >
+          <View style={styles.nameDialog}>
+            <Text style={styles.nameDialogTitle}>Rename workout</Text>
+
+            <LabeledInput
+              label="Workout name"
+              value={draft}
+              onChangeText={setDraft}
+              autoFocus
+            />
+
+            <View style={styles.nameDialogActions}>
+              <Button
+                label="Cancel"
+                variant="secondary"
+                onPress={() => setVisible(false)}
+                style={styles.nameDialogButton}
+              />
+              <Button
+                label="Save"
+                icon="check"
+                disabled={!draft.trim()}
+                onPress={saveName}
+                style={styles.nameDialogButton}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
+  );
+}
+
 export default function WorkoutDetailsScreen() {
   const params = useLocalSearchParams<{ id?: string | string[] }>();
   const workoutId = getParam(params.id) ?? "";
@@ -236,7 +324,7 @@ export default function WorkoutDetailsScreen() {
           style={[styles.summaryGlow, { backgroundColor: workout.accent }]}
         />
         <Text style={styles.day}>{getDayLabel(workout.day).toUpperCase()}</Text>
-        <Text style={styles.title}>{workout.name}</Text>
+        <WorkoutNameEditor workoutId={workout.id} name={workout.name} />
         <View style={styles.summaryMeta}>
           <Text style={styles.summaryText}>
             {workout.exercises.length} exercises
@@ -457,5 +545,42 @@ const styles = StyleSheet.create({
   },
   footerError: {
     color: colors.danger,
+  },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 44,
+  },
+  editableTitle: {
+    flex: 1,
+  },
+  nameModalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  nameDialog: {
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+  },
+  nameDialogTitle: {
+    color: colors.ink,
+    fontSize: typography.heading,
+    fontWeight: "800",
+    marginBottom: spacing.lg,
+  },
+  nameDialogActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  nameDialogButton: {
+    flex: 1,
   },
 });

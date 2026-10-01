@@ -28,6 +28,7 @@ type Action =
   | { type: "hydrate"; state: AppState }
   | { type: "toggleFavorite"; exerciseId: string }
   | { type: "createWorkout"; workout: WorkoutPlan }
+  | { type: "renameWorkout"; workoutId: string; name: string }
   | { type: "deleteWorkout"; workoutId: string }
   | { type: "addExercise"; workoutId: string; item: WorkoutExercise }
   | { type: "removeExercise"; workoutId: string; itemId: string }
@@ -66,6 +67,20 @@ function reducer(state: AppState, action: Action): AppState {
       };
     case "createWorkout":
       return { ...state, workouts: [...state.workouts, action.workout] };
+    case "renameWorkout": {
+      const name = action.name.trim();
+      const workout = state.workouts.find(
+        (item) => item.id === action.workoutId,
+      );
+      if (!name || !workout || workout.name === name) return state;
+
+      return {
+        ...state,
+        workouts: state.workouts.map((item) =>
+          item.id === action.workoutId ? { ...item, name } : item,
+        ),
+      };
+    }
     case "deleteWorkout":
       return {
         ...state,
@@ -221,6 +236,7 @@ type AppStoreValue = {
     durationMinutes: number,
     completedSets: number,
   ) => void;
+  renameWorkout: (workoutId: string, name: string) => void;
   deleteAllData: () => void;
 };
 
@@ -284,6 +300,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     },
     [],
   );
+
+  const renameWorkout = useCallback((workoutId: string, name: string) => {
+    dispatch({ type: "renameWorkout", workoutId, name });
+  }, []);
 
   const deleteWorkout = useCallback((workoutId: string) => {
     dispatch({ type: "deleteWorkout", workoutId });
@@ -397,6 +417,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       discardSession,
       completeWorkout,
       deleteAllData,
+      renameWorkout,
     }),
     [
       addExerciseToWorkout,

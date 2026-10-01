@@ -8,6 +8,7 @@ import {
   Pressable,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 
@@ -32,45 +33,163 @@ function getParam(value: string | string[] | undefined) {
 function Stepper({
   label,
   value,
+  numericValue,
+  min,
+  max,
+  unit,
+  allowDecimals = false,
+  onChange,
+  onClear,
   onDecrease,
   onIncrease,
 }: {
   label: string;
   value: string;
+  numericValue: number | undefined;
+  min: number;
+  max: number;
+  unit?: string;
+  allowDecimals?: boolean;
+  onChange: (nextValue: number) => void;
+  onClear?: () => void;
   onDecrease: () => void;
   onIncrease: () => void;
 }) {
+  const [visible, setVisible] = useState(false);
+  const [draft, setDraft] = useState("");
+  const normalized = draft.trim().replace(",", ".");
+  const formatMatches = allowDecimals
+    ? /^(?:\d+(?:\.\d*)?|\.\d+)$/.test(normalized)
+    : /^\d+$/.test(normalized);
+  const nextValue = Number(normalized);
+  const validNumber =
+    formatMatches &&
+    Number.isFinite(nextValue) &&
+    nextValue >= min &&
+    nextValue <= max;
+  const canClear = Boolean(onClear) && normalized.length === 0;
+  const canSave = validNumber || canClear;
+
+  const openEditor = () => {
+    setDraft(numericValue === undefined ? "" : String(numericValue));
+    setVisible(true);
+  };
+
+  const saveValue = () => {
+    if (!canSave) return;
+    if (canClear) onClear?.();
+    else onChange(nextValue);
+    setVisible(false);
+  };
+
   return (
-    <View style={styles.stepperGroup}>
-      <Text style={styles.stepperLabel}>{label}</Text>
-      <View style={styles.stepper}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Decrease ${label}`}
-          onPress={onDecrease}
-          style={({ pressed }) => [
-            styles.stepperButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <AppIcon name="minus" color={colors.ink} size={17} />
-        </Pressable>
-        <Text numberOfLines={1} style={styles.stepperValue}>
-          {value}
-        </Text>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Increase ${label}`}
-          onPress={onIncrease}
-          style={({ pressed }) => [
-            styles.stepperButton,
-            pressed && styles.pressed,
-          ]}
-        >
-          <AppIcon name="add" color={colors.ink} size={17} />
-        </Pressable>
+    <>
+      <View style={styles.stepperGroup}>
+        <Text style={styles.stepperLabel}>{label}</Text>
+        <View style={styles.stepper}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Decrease ${label}`}
+            onPress={onDecrease}
+            style={({ pressed }) => [
+              styles.stepperButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <AppIcon name="minus" color={colors.ink} size={17} />
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Edit ${label}, current value ${value}`}
+            accessibilityHint="Opens a field where you can type the value"
+            onPress={openEditor}
+            style={({ pressed }) => [
+              styles.stepperValueButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <Text numberOfLines={1} style={styles.stepperValue}>
+              {value}
+            </Text>
+          </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={`Increase ${label}`}
+            onPress={onIncrease}
+            style={({ pressed }) => [
+              styles.stepperButton,
+              pressed && styles.pressed,
+            ]}
+          >
+            <AppIcon name="add" color={colors.ink} size={17} />
+          </Pressable>
+        </View>
       </View>
-    </View>
+
+      <Modal
+        visible={visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setVisible(false)}
+      >
+        <KeyboardAvoidingView
+          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          style={styles.nameModalOverlay}
+        >
+          <View style={styles.nameDialog}>
+            <Text style={styles.nameDialogTitle}>
+              Edit {label.toLowerCase()}
+            </Text>
+            <Text style={styles.numericLabel}>
+              {label}
+              {unit ? ` (${unit})` : ""}
+            </Text>
+            <TextInput
+              accessibilityLabel={unit ? `${label} in ${unit}` : label}
+              value={draft}
+              onChangeText={setDraft}
+              keyboardType={allowDecimals ? "decimal-pad" : "number-pad"}
+              returnKeyType="done"
+              onSubmitEditing={saveValue}
+              autoFocus
+              selectTextOnFocus
+              autoCorrect={false}
+              placeholder={onClear ? "Bodyweight" : undefined}
+              placeholderTextColor={colors.inkMuted}
+              underlineColorAndroid="transparent"
+              style={styles.numericInput}
+            />
+            <Text
+              style={[
+                styles.numericHint,
+                normalized.length > 0 &&
+                  !validNumber && { color: colors.danger },
+              ]}
+            >
+              Enter {allowDecimals ? "a number" : "a whole number"} from {min}{" "}
+              to {max}
+              {unit ? ` ${unit}` : ""}.
+              {onClear ? " Leave blank for bodyweight." : ""}
+            </Text>
+            <View style={styles.nameDialogActions}>
+              <Button
+                label="Cancel"
+                variant="secondary"
+                onPress={() => setVisible(false)}
+                style={styles.nameDialogButton}
+              />
+              <Button
+                label="Save"
+                icon="check"
+                disabled={!canSave}
+                onPress={saveValue}
+                style={styles.nameDialogButton}
+              />
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </Modal>
+    </>
   );
 }
 
@@ -120,18 +239,33 @@ function ExerciseEditor({
         <Stepper
           label="Sets"
           value={`${item.sets}`}
+          numericValue={item.sets}
+          min={1}
+          max={10}
+          onChange={(sets) => update({ sets })}
           onDecrease={() => update({ sets: Math.max(1, item.sets - 1) })}
           onIncrease={() => update({ sets: Math.min(10, item.sets + 1) })}
         />
         <Stepper
           label="Reps"
           value={`${item.reps}`}
+          numericValue={item.reps}
+          min={1}
+          max={50}
+          onChange={(reps) => update({ reps })}
           onDecrease={() => update({ reps: Math.max(1, item.reps - 1) })}
           onIncrease={() => update({ reps: Math.min(50, item.reps + 1) })}
         />
         <Stepper
           label="Weight"
           value={displayWeight(item.weightKg)}
+          numericValue={item.weightKg}
+          min={0}
+          max={500}
+          unit="kg"
+          allowDecimals
+          onChange={(weightKg) => update({ weightKg })}
+          onClear={() => update({ weightKg: undefined })}
           onDecrease={() =>
             update({
               weightKg:
@@ -147,6 +281,11 @@ function ExerciseEditor({
         <Stepper
           label="Rest"
           value={secondsToRestLabel(item.restSeconds)}
+          numericValue={item.restSeconds}
+          min={0}
+          max={600}
+          unit="seconds"
+          onChange={(restSeconds) => update({ restSeconds })}
           onDecrease={() =>
             update({ restSeconds: Math.max(0, item.restSeconds - 15) })
           }
@@ -206,14 +345,12 @@ function WorkoutNameEditor({
         >
           <View style={styles.nameDialog}>
             <Text style={styles.nameDialogTitle}>Rename workout</Text>
-
             <LabeledInput
               label="Workout name"
               value={draft}
               onChangeText={setDraft}
               autoFocus
             />
-
             <View style={styles.nameDialogActions}>
               <Button
                 label="Cancel"
@@ -408,6 +545,43 @@ const styles = StyleSheet.create({
     fontWeight: "800",
     marginTop: spacing.xs,
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    minHeight: 44,
+  },
+  editableTitle: {
+    flex: 1,
+  },
+  nameModalOverlay: {
+    flex: 1,
+    backgroundColor: colors.overlay,
+    justifyContent: "center",
+    padding: spacing.lg,
+  },
+  nameDialog: {
+    width: "100%",
+    maxWidth: 520,
+    alignSelf: "center",
+    padding: spacing.lg,
+    borderRadius: radii.lg,
+    backgroundColor: colors.surface,
+  },
+  nameDialogTitle: {
+    color: colors.ink,
+    fontSize: typography.heading,
+    fontWeight: "800",
+    marginBottom: spacing.lg,
+  },
+  nameDialogActions: {
+    flexDirection: "row",
+    gap: spacing.sm,
+    marginTop: spacing.lg,
+  },
+  nameDialogButton: {
+    flex: 1,
+  },
   summaryMeta: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -516,12 +690,40 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceMuted,
   },
   stepperValue: {
-    flex: 1,
     color: colors.ink,
     fontSize: 12,
     fontWeight: "700",
     textAlign: "center",
     paddingHorizontal: 4,
+  },
+  stepperValueButton: {
+    flex: 1,
+    minWidth: 44,
+    alignSelf: "stretch",
+    justifyContent: "center",
+  },
+  numericLabel: {
+    color: colors.ink,
+    fontSize: typography.label,
+    fontWeight: "700",
+    marginBottom: spacing.xs,
+  },
+  numericInput: {
+    minHeight: 54,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    paddingHorizontal: spacing.md,
+    color: colors.ink,
+    fontSize: typography.heading,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  numericHint: {
+    color: colors.inkMuted,
+    fontSize: typography.caption,
+    lineHeight: 18,
+    marginTop: spacing.xs,
   },
   pressed: {
     opacity: 0.62,
@@ -545,42 +747,5 @@ const styles = StyleSheet.create({
   },
   footerError: {
     color: colors.danger,
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: spacing.sm,
-    minHeight: 44,
-  },
-  editableTitle: {
-    flex: 1,
-  },
-  nameModalOverlay: {
-    flex: 1,
-    backgroundColor: colors.overlay,
-    justifyContent: "center",
-    padding: spacing.lg,
-  },
-  nameDialog: {
-    width: "100%",
-    maxWidth: 520,
-    alignSelf: "center",
-    padding: spacing.lg,
-    borderRadius: radii.lg,
-    backgroundColor: colors.surface,
-  },
-  nameDialogTitle: {
-    color: colors.ink,
-    fontSize: typography.heading,
-    fontWeight: "800",
-    marginBottom: spacing.lg,
-  },
-  nameDialogActions: {
-    flexDirection: "row",
-    gap: spacing.sm,
-    marginTop: spacing.lg,
-  },
-  nameDialogButton: {
-    flex: 1,
   },
 });

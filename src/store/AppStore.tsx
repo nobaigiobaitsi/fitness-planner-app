@@ -1,6 +1,6 @@
 import {
-  PropsWithChildren,
   createContext,
+  PropsWithChildren,
   useCallback,
   useContext,
   useEffect,
@@ -10,10 +10,13 @@ import {
 } from "react";
 
 import { createInitialState } from "@/data/initialState";
+import { useRestTimerEffects } from "@/hooks/useRestTimerEffects";
 import { loadAppState, saveAppState } from "@/services/stateStorage";
 import {
   AppState,
   DayKey,
+  defaultSessionTimerSettings,
+  SessionTimerSettings,
   WorkoutExercise,
   WorkoutLog,
   WorkoutPlan,
@@ -38,13 +41,22 @@ type Action =
       itemId: string;
       patch: WorkoutExercisePatch;
     }
-  | { type: "startSession"; workoutId: string }
+  | { type: "startSession"; workoutId: string; options: SessionTimerSettings }
+  | {
+      type: "updateSessionTimerSettings";
+      workoutId: string;
+      patch: Partial<SessionTimerSettings>;
+    }
+  | { type: "cancelRestTimer"; workoutId: string }
+  | { type: "finishRestTimer"; workoutId: string; timerId: string }
   | {
       type: "toggleSessionSet";
       workoutId: string;
       itemId: string;
       setIndex: number;
       elapsedSeconds: number;
+      now: number;
+      timerId: string;
     }
   | { type: "checkpointSession"; workoutId: string; elapsedSeconds: number }
   | { type: "discardSession"; workoutId: string }
@@ -142,6 +154,8 @@ function reducer(state: AppState, action: Action): AppState {
         activeSession: {
           workoutId: action.workoutId,
           elapsedSeconds: 0,
+          timerSettings: { ...action.options },
+          restTimer: null,
           completed: Object.fromEntries(
             workout.exercises.map((item) => [
               item.id,
@@ -151,12 +165,90 @@ function reducer(state: AppState, action: Action): AppState {
         },
       };
     }
+    case "updateSessionTimerSettings": {
+      const session = state.activeSession;
+      if (!session || session.workoutId !== action.workoutId) return state;
+      const timerSettings = { ...session.timerSettings, ...action.patch };
+      return {
+        ...state,
+        activeSession: {
+          ...session,
+          timerSettings,
+          restTimer: timerSettings.enabled ? session.restTimer : null,
+        },
+      };
+    }
+    case "cancelRestTimer":
+      return state.activeSession?.workoutId === action.workoutId
+        ? {
+            ...state,
+            activeSession: { ...state.activeSession, restTimer: null },
+          }
+        : state;
+    case "finishRestTimer": {
+      const session = state.activeSession;
+      if (
+        !session ||
+        session.workoutId !== action.workoutId ||
+        session.restTimer?.id !== action.timerId ||
+        session.restTimer.finished
+      )
+        return state;
+      return {
+        ...state,
+        activeSession: {
+          ...session,
+          restTimer: { ...session.restTimer, finished: true },
+        },
+      };
+    }
     case "toggleSessionSet": {
       const session = state.activeSession;
       if (!session || session.workoutId !== action.workoutId) return state;
       const sets = session.completed[action.itemId];
-      if (!sets || action.setIndex < 0 || action.setIndex >= sets.length)
+      const item = state.workouts
+        .find((workout) => workout.id === action.workoutId)
+        ?.exercises.find((exercise) => exercise.id === action.itemId);
+      if (
+        !item ||
+        !sets ||
+        action.setIndex < 0 ||
+        action.setIndex >= sets.length
+      )
         return state;
+      const markingDone = !sets[action.setIndex];
+      const completed = {
+        ...session.completed,
+        [action.itemId]: sets.map((done, index) =>
+          index === action.setIndex ? !done : done,
+        ),
+      };
+      let restTimer = session.restTimer;
+      if (markingDone) {
+        const endsAt = action.now + item.restSeconds * 1000;
+        const hasMoreSets = Object.values(completed).some((values) =>
+          values.some((done) => !done),
+        );
+        restTimer =
+          session.timerSettings.enabled &&
+          hasMoreSets &&
+          item.restSeconds > 0 &&
+          Number.isSafeInteger(endsAt) &&
+          endsAt <= 8640000000000000
+            ? {
+                id: action.timerId,
+                itemId: item.id,
+                setIndex: action.setIndex,
+                endsAt,
+                finished: false,
+              }
+            : null;
+      } else if (
+        restTimer?.itemId === item.id &&
+        restTimer.setIndex === action.setIndex
+      ) {
+        restTimer = null;
+      }
       return {
         ...state,
         activeSession: {
@@ -165,12 +257,8 @@ function reducer(state: AppState, action: Action): AppState {
             session.elapsedSeconds,
             action.elapsedSeconds,
           ),
-          completed: {
-            ...session.completed,
-            [action.itemId]: sets.map((done, index) =>
-              index === action.setIndex ? !done : done,
-            ),
-          },
+          completed,
+          restTimer,
         },
       };
     }
@@ -222,7 +310,14 @@ type AppStoreValue = {
     itemId: string,
     patch: WorkoutExercisePatch,
   ) => void;
-  startSession: (workoutId: string) => void;
+  startSession: (workoutId: string, options?: SessionTimerSettings) => void;
+  updateSessionTimerSettings: (
+    workoutId: string,
+    patch: Partial<SessionTimerSettings>,
+  ) => void;
+  cancelRestTimer: (workoutId: string) => void;
+  restAlertError: ReturnType<typeof useRestTimerEffects>["alertError"];
+  restSoundError: boolean;
   toggleSessionSet: (
     workoutId: string,
     itemId: string,
@@ -340,8 +435,26 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     [],
   );
 
-  const startSession = useCallback((workoutId: string) => {
-    dispatch({ type: "startSession", workoutId });
+  const startSession = useCallback(
+    (workoutId: string, options = defaultSessionTimerSettings) => {
+      dispatch({ type: "startSession", workoutId, options });
+    },
+    [],
+  );
+
+  const updateSessionTimerSettings = useCallback(
+    (workoutId: string, patch: Partial<SessionTimerSettings>) => {
+      dispatch({ type: "updateSessionTimerSettings", workoutId, patch });
+    },
+    [],
+  );
+
+  const cancelRestTimer = useCallback((workoutId: string) => {
+    dispatch({ type: "cancelRestTimer", workoutId });
+  }, []);
+
+  const finishRestTimer = useCallback((workoutId: string, timerId: string) => {
+    dispatch({ type: "finishRestTimer", workoutId, timerId });
   }, []);
 
   const toggleSessionSet = useCallback(
@@ -357,6 +470,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
         itemId,
         setIndex,
         elapsedSeconds,
+        now: Date.now(),
+        timerId: createId("rest"),
       });
     },
     [],
@@ -399,6 +514,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     setHydrationFailed(false);
   }, []);
 
+  const { alertError: restAlertError, soundError: restSoundError } =
+    useRestTimerEffects(state.activeSession, isReady, finishRestTimer);
+
   const value = useMemo<AppStoreValue>(
     () => ({
       state,
@@ -412,6 +530,10 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       removeExerciseFromWorkout,
       updateWorkoutExercise,
       startSession,
+      updateSessionTimerSettings,
+      cancelRestTimer,
+      restAlertError,
+      restSoundError,
       toggleSessionSet,
       checkpointSession,
       discardSession,
@@ -421,6 +543,11 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     }),
     [
       addExerciseToWorkout,
+      cancelRestTimer,
+      updateSessionTimerSettings,
+      restAlertError,
+      restSoundError,
+      renameWorkout,
       completeWorkout,
       checkpointSession,
       createWorkout,

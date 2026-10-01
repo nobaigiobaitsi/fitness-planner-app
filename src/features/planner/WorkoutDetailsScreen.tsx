@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/EmptyState";
 import { LabeledInput } from "@/components/Inputs";
 import { Screen } from "@/components/Screen";
 import { SectionHeader } from "@/components/Section";
+import { StartWorkoutButton } from "@/components/StartWorkoutButton";
 import { getDayLabel } from "@/data/days";
 import { getExerciseById } from "@/data/exercises";
 import { useAppStore } from "@/store/AppStore";
@@ -469,12 +470,10 @@ export default function WorkoutDetailsScreen() {
           <View style={styles.dot} />
           <Text style={styles.summaryText}>{totalSets} sets</Text>
         </View>
-        <Button
-          label="Start workout"
-          icon="play"
-          disabled={!workout.exercises.length}
-          onPress={() => router.push(`/session/${workout.id}`)}
-          style={styles.startButton}
+        <StartWorkoutButton
+          workoutId={workout.id}
+          dark
+          buttonStyle={styles.startButton}
         />
       </View>
 

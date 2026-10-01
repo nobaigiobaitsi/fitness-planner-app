@@ -84,10 +84,32 @@ export type WorkoutLog = {
   exerciseCount: number;
 };
 
+export type SessionTimerSettings = {
+  enabled: boolean;
+  soundEnabled: boolean;
+  backgroundAlerts: boolean;
+};
+
+export const defaultSessionTimerSettings: SessionTimerSettings = {
+  enabled: false,
+  soundEnabled: true,
+  backgroundAlerts: false,
+};
+
+export type SessionRestTimer = {
+  id: string;
+  itemId: string;
+  setIndex: number;
+  endsAt: number;
+  finished: boolean;
+};
+
 export type ActiveSession = {
   workoutId: string;
   elapsedSeconds: number;
   completed: Record<string, boolean[]>;
+  timerSettings: SessionTimerSettings;
+  restTimer: SessionRestTimer | null;
 };
 
 export type AppState = {

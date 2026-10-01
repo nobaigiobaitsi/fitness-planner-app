@@ -10,11 +10,16 @@ import {
   View,
 } from "react-native";
 
+import { BackHeader } from "@/components/AppHeader";
 import { AppIcon } from "@/components/AppIcon";
 import { Button } from "@/components/Buttons";
 import { EmptyState } from "@/components/EmptyState";
+import { RestCountdown } from "@/components/RestCountdown";
 import { Screen } from "@/components/Screen";
+import { SessionTimerOptions } from "@/components/SessionTimerOptions";
+import { StartWorkoutButton } from "@/components/StartWorkoutButton";
 import { getExerciseById } from "@/data/exercises";
+import { openRestAlertSettings } from "@/services/restAlerts";
 import { useAppStore } from "@/store/AppStore";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
 import {
@@ -33,7 +38,9 @@ export default function WorkoutSessionScreen() {
   const navigation = useNavigation();
   const {
     state,
-    startSession,
+    updateSessionTimerSettings,
+    restAlertError,
+    restSoundError,
     toggleSessionSet,
     checkpointSession,
     discardSession,
@@ -49,16 +56,6 @@ export default function WorkoutSessionScreen() {
   const [elapsedSeconds, setElapsedSeconds] = useState(
     session?.elapsedSeconds ?? 0,
   );
-
-  useEffect(() => {
-    if (
-      workout &&
-      !state.activeSession &&
-      workout.exercises.length &&
-      !allowExit.current
-    )
-      startSession(workoutId);
-  }, [startSession, state.activeSession, workout, workoutId]);
 
   useEffect(() => {
     if (!session) return;
@@ -196,11 +193,11 @@ export default function WorkoutSessionScreen() {
   if (!session) {
     return (
       <Screen>
-        <EmptyState
-          icon="clock"
-          title="Preparing workout"
-          message="Loading your workout session…"
-        />
+        <BackHeader title={workout.name} />
+        <Text style={styles.setupDescription}>
+          Choose your options, then start training.
+        </Text>
+        <StartWorkoutButton workoutId={workoutId} stayOnScreen />
       </Screen>
     );
   }
@@ -287,6 +284,41 @@ export default function WorkoutSessionScreen() {
           <Text style={styles.timerText}>{formatElapsed(elapsedSeconds)}</Text>
         </View>
       </View>
+
+      <View style={styles.restOptions}>
+        <SessionTimerOptions
+          value={session.timerSettings}
+          onChange={(patch) => updateSessionTimerSettings(workoutId, patch)}
+        />
+        {restAlertError ? (
+          <View style={styles.restWarning}>
+            <Text style={styles.restWarningText}>
+              {restAlertError === "exact-alarm"
+                ? "Allow FitPlanner in Alarms & reminders for timed background alerts. The on-screen timer still works."
+                : "Background alerts are unavailable. The on-screen timer still works. Check FitPlanner's notification settings."}
+            </Text>
+            <Button
+              label={
+                restAlertError === "exact-alarm"
+                  ? "Alarm settings"
+                  : "Notification settings"
+              }
+              variant="secondary"
+              onPress={() => {
+                void openRestAlertSettings(restAlertError).catch(
+                  () => undefined,
+                );
+              }}
+            />
+          </View>
+        ) : null}
+        {restSoundError ? (
+          <Text style={styles.restWarningText}>
+            The rest sound could not play. You can continue using the countdown.
+          </Text>
+        ) : null}
+      </View>
+      <RestCountdown />
 
       <View style={styles.progressHeader}>
         <Text style={styles.progressLabel}>Session progress</Text>
@@ -395,6 +427,25 @@ export default function WorkoutSessionScreen() {
 }
 
 const styles = StyleSheet.create({
+  setupDescription: {
+    color: colors.inkMuted,
+    fontSize: typography.body,
+    lineHeight: 23,
+  },
+  restOptions: {
+    padding: spacing.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.surface,
+    marginBottom: spacing.lg,
+  },
+  restWarning: { gap: spacing.sm, marginTop: spacing.sm },
+  restWarningText: {
+    color: colors.danger,
+    fontSize: typography.caption,
+    lineHeight: 18,
+  },
   header: {
     minHeight: 54,
     flexDirection: "row",

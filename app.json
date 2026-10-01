@@ -2,7 +2,7 @@
   "expo": {
     "name": "FitPlanner",
     "slug": "fitplanner",
-    "version": "0.2.0",
+    "version": "0.3.0",
     "orientation": "portrait",
     "icon": "./assets/images/FitPlanner-icon.png",
     "scheme": "fitplanner",
@@ -16,6 +16,7 @@
     },
     "android": {
       "package": "com.stavrosangelopoulos.fitplanner",
+      "permissions": ["android.permission.SCHEDULE_EXACT_ALARM"],
       "versionCode": 1,
       "allowBackup": false,
       "adaptiveIcon": {
@@ -46,7 +47,23 @@
           "imageWidth": 76
         }
       ],
-      "expo-image"
+      "expo-image",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "enableBackgroundPlayback": false,
+          "enableBackgroundRecording": false
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "sounds": ["./assets/audio/rest_finished.wav"]
+        }
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

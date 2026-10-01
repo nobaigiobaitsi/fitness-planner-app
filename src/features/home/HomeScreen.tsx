@@ -8,6 +8,7 @@ import { StatCard, SurfaceCard } from "@/components/Cards";
 import { EmptyState } from "@/components/EmptyState";
 import { Screen } from "@/components/Screen";
 import { InlineNotice, SectionHeader } from "@/components/Section";
+import { StartWorkoutButton } from "@/components/StartWorkoutButton";
 import { getDayLabel } from "@/data/days";
 import { useAppStore } from "@/store/AppStore";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
@@ -118,18 +119,21 @@ export default function HomeScreen() {
               {next.workout.exercises.length} exercises
             </Text>
           </View>
-          <Button
-            label={
-              next.workout.exercises.length ? "Start workout" : "Build workout"
-            }
-            icon={next.workout.exercises.length ? "play" : "add"}
-            onPress={() =>
-              next.workout.exercises.length
-                ? router.push(`/session/${next.workout.id}`)
-                : router.push(`/workout/${next.workout.id}`)
-            }
-            style={styles.heroButton}
-          />
+          {next.workout.exercises.length ? (
+            <StartWorkoutButton
+              key={next.workout.id}
+              workoutId={next.workout.id}
+              dark
+              buttonStyle={styles.heroButton}
+            />
+          ) : (
+            <Button
+              label="Build workout"
+              icon="add"
+              onPress={() => router.push(`/workout/${next.workout.id}`)}
+              style={styles.heroButton}
+            />
+          )}
         </View>
       ) : (
         <EmptyState

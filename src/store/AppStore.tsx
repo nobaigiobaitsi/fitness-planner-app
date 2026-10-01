@@ -7,57 +7,77 @@ import {
   useMemo,
   useReducer,
   useState,
-} from 'react';
+} from "react";
 
-import { createInitialState } from '@/data/initialState';
-import { loadAppState, saveAppState } from '@/services/stateStorage';
+import { createInitialState } from "@/data/initialState";
+import { loadAppState, saveAppState } from "@/services/stateStorage";
 import {
   AppState,
   DayKey,
   WorkoutExercise,
   WorkoutLog,
   WorkoutPlan,
-} from '@/types/domain';
-import { createId } from '@/utils/id';
+} from "@/types/domain";
+import { createId } from "@/utils/id";
 
-type WorkoutExercisePatch = Partial<Pick<WorkoutExercise, 'sets' | 'reps' | 'restSeconds' | 'weightKg' | 'notes'>>;
+type WorkoutExercisePatch = Partial<
+  Pick<WorkoutExercise, "sets" | "reps" | "restSeconds" | "weightKg" | "notes">
+>;
 
 type Action =
-  | { type: 'hydrate'; state: AppState }
-  | { type: 'toggleFavorite'; exerciseId: string }
-  | { type: 'createWorkout'; workout: WorkoutPlan }
-  | { type: 'deleteWorkout'; workoutId: string }
-  | { type: 'addExercise'; workoutId: string; item: WorkoutExercise }
-  | { type: 'removeExercise'; workoutId: string; itemId: string }
-  | { type: 'updateExercise'; workoutId: string; itemId: string; patch: WorkoutExercisePatch }
-  | { type: 'startSession'; workoutId: string }
-  | { type: 'toggleSessionSet'; workoutId: string; itemId: string; setIndex: number; elapsedSeconds: number }
-  | { type: 'checkpointSession'; workoutId: string; elapsedSeconds: number }
-  | { type: 'discardSession'; workoutId: string }
-  | { type: 'completeWorkout'; log: WorkoutLog }
-  | { type: 'reset'; state: AppState };
+  | { type: "hydrate"; state: AppState }
+  | { type: "toggleFavorite"; exerciseId: string }
+  | { type: "createWorkout"; workout: WorkoutPlan }
+  | { type: "deleteWorkout"; workoutId: string }
+  | { type: "addExercise"; workoutId: string; item: WorkoutExercise }
+  | { type: "removeExercise"; workoutId: string; itemId: string }
+  | {
+      type: "updateExercise";
+      workoutId: string;
+      itemId: string;
+      patch: WorkoutExercisePatch;
+    }
+  | { type: "startSession"; workoutId: string }
+  | {
+      type: "toggleSessionSet";
+      workoutId: string;
+      itemId: string;
+      setIndex: number;
+      elapsedSeconds: number;
+    }
+  | { type: "checkpointSession"; workoutId: string; elapsedSeconds: number }
+  | { type: "discardSession"; workoutId: string }
+  | { type: "completeWorkout"; log: WorkoutLog }
+  | { type: "reset"; state: AppState };
 
 function reducer(state: AppState, action: Action): AppState {
   switch (action.type) {
-    case 'hydrate':
-    case 'reset':
+    case "hydrate":
+    case "reset":
       return action.state;
-    case 'toggleFavorite':
+    case "toggleFavorite":
       return {
         ...state,
-        favoriteExerciseIds: state.favoriteExerciseIds.includes(action.exerciseId)
+        favoriteExerciseIds: state.favoriteExerciseIds.includes(
+          action.exerciseId,
+        )
           ? state.favoriteExerciseIds.filter((id) => id !== action.exerciseId)
           : [...state.favoriteExerciseIds, action.exerciseId],
       };
-    case 'createWorkout':
+    case "createWorkout":
       return { ...state, workouts: [...state.workouts, action.workout] };
-    case 'deleteWorkout':
+    case "deleteWorkout":
       return {
         ...state,
-        workouts: state.workouts.filter((workout) => workout.id !== action.workoutId),
-        activeSession: state.activeSession?.workoutId === action.workoutId ? null : state.activeSession,
+        workouts: state.workouts.filter(
+          (workout) => workout.id !== action.workoutId,
+        ),
+        activeSession:
+          state.activeSession?.workoutId === action.workoutId
+            ? null
+            : state.activeSession,
       };
-    case 'addExercise':
+    case "addExercise":
       return {
         ...state,
         workouts: state.workouts.map((workout) =>
@@ -66,16 +86,21 @@ function reducer(state: AppState, action: Action): AppState {
             : workout,
         ),
       };
-    case 'removeExercise':
+    case "removeExercise":
       return {
         ...state,
         workouts: state.workouts.map((workout) =>
           workout.id === action.workoutId
-            ? { ...workout, exercises: workout.exercises.filter((item) => item.id !== action.itemId) }
+            ? {
+                ...workout,
+                exercises: workout.exercises.filter(
+                  (item) => item.id !== action.itemId,
+                ),
+              }
             : workout,
         ),
       };
-    case 'updateExercise':
+    case "updateExercise":
       return {
         ...state,
         workouts: state.workouts.map((workout) =>
@@ -83,15 +108,19 @@ function reducer(state: AppState, action: Action): AppState {
             ? {
                 ...workout,
                 exercises: workout.exercises.map((item) =>
-                  item.id === action.itemId ? { ...item, ...action.patch } : item,
+                  item.id === action.itemId
+                    ? { ...item, ...action.patch }
+                    : item,
                 ),
               }
             : workout,
         ),
       };
-    case 'startSession': {
+    case "startSession": {
       if (state.activeSession) return state;
-      const workout = state.workouts.find((item) => item.id === action.workoutId);
+      const workout = state.workouts.find(
+        (item) => item.id === action.workoutId,
+      );
       if (!workout?.exercises.length) return state;
       return {
         ...state,
@@ -99,41 +128,61 @@ function reducer(state: AppState, action: Action): AppState {
           workoutId: action.workoutId,
           elapsedSeconds: 0,
           completed: Object.fromEntries(
-            workout.exercises.map((item) => [item.id, Array<boolean>(item.sets).fill(false)]),
+            workout.exercises.map((item) => [
+              item.id,
+              Array<boolean>(item.sets).fill(false),
+            ]),
           ),
         },
       };
     }
-    case 'toggleSessionSet': {
+    case "toggleSessionSet": {
       const session = state.activeSession;
       if (!session || session.workoutId !== action.workoutId) return state;
       const sets = session.completed[action.itemId];
-      if (!sets || action.setIndex < 0 || action.setIndex >= sets.length) return state;
+      if (!sets || action.setIndex < 0 || action.setIndex >= sets.length)
+        return state;
       return {
         ...state,
         activeSession: {
           ...session,
-          elapsedSeconds: Math.max(session.elapsedSeconds, action.elapsedSeconds),
+          elapsedSeconds: Math.max(
+            session.elapsedSeconds,
+            action.elapsedSeconds,
+          ),
           completed: {
             ...session.completed,
-            [action.itemId]: sets.map((done, index) => index === action.setIndex ? !done : done),
+            [action.itemId]: sets.map((done, index) =>
+              index === action.setIndex ? !done : done,
+            ),
           },
         },
       };
     }
-    case 'checkpointSession':
-      if (!state.activeSession || state.activeSession.workoutId !== action.workoutId ||
-          action.elapsedSeconds <= state.activeSession.elapsedSeconds) return state;
+    case "checkpointSession":
+      if (
+        !state.activeSession ||
+        state.activeSession.workoutId !== action.workoutId ||
+        action.elapsedSeconds <= state.activeSession.elapsedSeconds
+      )
+        return state;
       return {
         ...state,
-        activeSession: { ...state.activeSession, elapsedSeconds: action.elapsedSeconds },
+        activeSession: {
+          ...state.activeSession,
+          elapsedSeconds: action.elapsedSeconds,
+        },
       };
-    case 'discardSession':
+    case "discardSession":
       return state.activeSession?.workoutId === action.workoutId
         ? { ...state, activeSession: null }
         : state;
-    case 'completeWorkout':
-      return { ...state, history: [action.log, ...state.history], activeSession: null };
+    case "completeWorkout":
+      return {
+        ...state,
+        history: [action.log, ...state.history],
+        activeSession: null,
+      };
     default:
       return state;
   }
@@ -145,16 +194,33 @@ type AppStoreValue = {
   storageError: boolean;
   storageLoadFailed: boolean;
   toggleFavorite: (exerciseId: string) => void;
-  createWorkout: (input: { name: string; day: DayKey; accent: string }) => string;
+  createWorkout: (input: {
+    name: string;
+    day: DayKey;
+    accent: string;
+  }) => string;
   deleteWorkout: (workoutId: string) => void;
   addExerciseToWorkout: (workoutId: string, exerciseId: string) => void;
   removeExerciseFromWorkout: (workoutId: string, itemId: string) => void;
-  updateWorkoutExercise: (workoutId: string, itemId: string, patch: WorkoutExercisePatch) => void;
+  updateWorkoutExercise: (
+    workoutId: string,
+    itemId: string,
+    patch: WorkoutExercisePatch,
+  ) => void;
   startSession: (workoutId: string) => void;
-  toggleSessionSet: (workoutId: string, itemId: string, setIndex: number, elapsedSeconds: number) => void;
+  toggleSessionSet: (
+    workoutId: string,
+    itemId: string,
+    setIndex: number,
+    elapsedSeconds: number,
+  ) => void;
   checkpointSession: (workoutId: string, elapsedSeconds: number) => void;
   discardSession: (workoutId: string) => void;
-  completeWorkout: (workoutId: string, durationMinutes: number, completedSets: number) => void;
+  completeWorkout: (
+    workoutId: string,
+    durationMinutes: number,
+    completedSets: number,
+  ) => void;
   deleteAllData: () => void;
 };
 
@@ -171,7 +237,8 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
 
     loadAppState()
       .then((savedState) => {
-        if (active && savedState) dispatch({ type: 'hydrate', state: savedState });
+        if (active && savedState)
+          dispatch({ type: "hydrate", state: savedState });
       })
       .catch(() => {
         if (active) {
@@ -197,68 +264,93 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, [hydrationFailed, isReady, state]);
 
   const toggleFavorite = useCallback((exerciseId: string) => {
-    dispatch({ type: 'toggleFavorite', exerciseId });
+    dispatch({ type: "toggleFavorite", exerciseId });
   }, []);
 
-  const createWorkout = useCallback((input: { name: string; day: DayKey; accent: string }) => {
-    const id = createId('workout');
-    dispatch({
-      type: 'createWorkout',
-      workout: {
-        id,
-        name: input.name.trim(),
-        day: input.day,
-        accent: input.accent,
-        estimatedMinutes: 45,
-        exercises: [],
-      },
-    });
-    return id;
-  }, []);
+  const createWorkout = useCallback(
+    (input: { name: string; day: DayKey; accent: string }) => {
+      const id = createId("workout");
+      dispatch({
+        type: "createWorkout",
+        workout: {
+          id,
+          name: input.name.trim(),
+          day: input.day,
+          accent: input.accent,
+          exercises: [],
+        },
+      });
+      return id;
+    },
+    [],
+  );
 
   const deleteWorkout = useCallback((workoutId: string) => {
-    dispatch({ type: 'deleteWorkout', workoutId });
+    dispatch({ type: "deleteWorkout", workoutId });
   }, []);
 
-  const addExerciseToWorkout = useCallback((workoutId: string, exerciseId: string) => {
-    dispatch({
-      type: 'addExercise',
-      workoutId,
-      item: {
-        id: createId('exercise'),
-        exerciseId,
-        sets: 3,
-        reps: 10,
-        restSeconds: 90,
-      },
-    });
-  }, []);
+  const addExerciseToWorkout = useCallback(
+    (workoutId: string, exerciseId: string) => {
+      dispatch({
+        type: "addExercise",
+        workoutId,
+        item: {
+          id: createId("exercise"),
+          exerciseId,
+          sets: 3,
+          reps: 10,
+          restSeconds: 90,
+        },
+      });
+    },
+    [],
+  );
 
-  const removeExerciseFromWorkout = useCallback((workoutId: string, itemId: string) => {
-    dispatch({ type: 'removeExercise', workoutId, itemId });
-  }, []);
+  const removeExerciseFromWorkout = useCallback(
+    (workoutId: string, itemId: string) => {
+      dispatch({ type: "removeExercise", workoutId, itemId });
+    },
+    [],
+  );
 
   const updateWorkoutExercise = useCallback(
     (workoutId: string, itemId: string, patch: WorkoutExercisePatch) => {
-      dispatch({ type: 'updateExercise', workoutId, itemId, patch });
+      dispatch({ type: "updateExercise", workoutId, itemId, patch });
     },
     [],
   );
 
   const startSession = useCallback((workoutId: string) => {
-    dispatch({ type: 'startSession', workoutId });
+    dispatch({ type: "startSession", workoutId });
   }, []);
 
-  const toggleSessionSet = useCallback((workoutId: string, itemId: string, setIndex: number, elapsedSeconds: number) => {
-    dispatch({ type: 'toggleSessionSet', workoutId, itemId, setIndex, elapsedSeconds });
-  }, []);
+  const toggleSessionSet = useCallback(
+    (
+      workoutId: string,
+      itemId: string,
+      setIndex: number,
+      elapsedSeconds: number,
+    ) => {
+      dispatch({
+        type: "toggleSessionSet",
+        workoutId,
+        itemId,
+        setIndex,
+        elapsedSeconds,
+      });
+    },
+    [],
+  );
 
-  const checkpointSession = useCallback((workoutId: string, elapsedSeconds: number) => {
-    dispatch({ type: 'checkpointSession', workoutId, elapsedSeconds });
-  }, []);
+  const checkpointSession = useCallback(
+    (workoutId: string, elapsedSeconds: number) => {
+      dispatch({ type: "checkpointSession", workoutId, elapsedSeconds });
+    },
+    [],
+  );
 
   const discardSession = useCallback((workoutId: string) => {
-    dispatch({ type: 'discardSession', workoutId });
+    dispatch({ type: "discardSession", workoutId });
   }, []);
 
   const completeWorkout = useCallback(
@@ -267,9 +359,9 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
       if (!workout) return;
 
       dispatch({
-        type: 'completeWorkout',
+        type: "completeWorkout",
         log: {
-          id: createId('log'),
+          id: createId("log"),
           workoutId,
           workoutName: workout.name,
           completedAt: new Date().toISOString(),
@@ -283,7 +375,7 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   );
 
   const deleteAllData = useCallback(() => {
-    dispatch({ type: 'reset', state: createInitialState() });
+    dispatch({ type: "reset", state: createInitialState() });
     setHydrationFailed(false);
   }, []);
 
@@ -326,11 +418,16 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
     ],
   );
 
-  return <AppStoreContext.Provider value={value}>{children}</AppStoreContext.Provider>;
+  return (
+    <AppStoreContext.Provider value={value}>
+      {children}
+    </AppStoreContext.Provider>
+  );
 }
 
 export function useAppStore() {
   const value = useContext(AppStoreContext);
-  if (!value) throw new Error('useAppStore must be used inside AppStoreProvider');
+  if (!value)
+    throw new Error("useAppStore must be used inside AppStoreProvider");
   return value;
 }

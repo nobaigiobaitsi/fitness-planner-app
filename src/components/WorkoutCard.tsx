@@ -1,9 +1,9 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from "react-native";
 
-import { AppIcon } from '@/components/AppIcon';
-import { getDayLabel } from '@/data/days';
-import { colors, radii, spacing, typography } from '@/theme/tokens';
-import { WorkoutPlan } from '@/types/domain';
+import { AppIcon } from "@/components/AppIcon";
+import { getDayLabel } from "@/data/days";
+import { colors, radii, spacing, typography } from "@/theme/tokens";
+import { WorkoutPlan } from "@/types/domain";
 
 type WorkoutCardProps = {
   workout: WorkoutPlan;
@@ -11,27 +11,35 @@ type WorkoutCardProps = {
   showDay?: boolean;
 };
 
-export function WorkoutCard({ workout, onPress, showDay = false }: WorkoutCardProps) {
-  const setCount = workout.exercises.reduce((total, item) => total + item.sets, 0);
+export function WorkoutCard({
+  workout,
+  onPress,
+  showDay = false,
+}: WorkoutCardProps) {
+  const setCount = workout.exercises.reduce(
+    (total, item) => total + item.sets,
+    0,
+  );
 
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={`Open ${workout.name}`}
       onPress={onPress}
-      style={({ pressed }) => [styles.card, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.card, pressed && styles.pressed]}
+    >
       <View style={[styles.accent, { backgroundColor: workout.accent }]} />
       <View style={styles.copy}>
-        {showDay ? <Text style={styles.day}>{getDayLabel(workout.day)}</Text> : null}
+        {showDay ? (
+          <Text style={styles.day}>{getDayLabel(workout.day)}</Text>
+        ) : null}
         <Text style={styles.name}>{workout.name}</Text>
         <View style={styles.metaRow}>
           <View style={styles.metaItem}>
             <AppIcon name="exercise" color={colors.inkMuted} size={16} />
-            <Text style={styles.metaText}>{workout.exercises.length} exercises</Text>
-          </View>
-          <View style={styles.metaItem}>
-            <AppIcon name="clock" color={colors.inkMuted} size={16} />
-            <Text style={styles.metaText}>{workout.estimatedMinutes} min</Text>
+            <Text style={styles.metaText}>
+              {workout.exercises.length} exercises
+            </Text>
           </View>
         </View>
         <Text style={styles.sets}>{setCount} working sets</Text>
@@ -48,14 +56,14 @@ const styles = StyleSheet.create({
     borderRadius: radii.lg,
     borderWidth: 1,
     borderColor: colors.border,
-    overflow: 'hidden',
-    flexDirection: 'row',
-    alignItems: 'center',
+    overflow: "hidden",
+    flexDirection: "row",
+    alignItems: "center",
     paddingRight: spacing.md,
   },
   accent: {
     width: 7,
-    alignSelf: 'stretch',
+    alignSelf: "stretch",
   },
   copy: {
     flex: 1,
@@ -64,25 +72,25 @@ const styles = StyleSheet.create({
   day: {
     color: colors.primary,
     fontSize: typography.caption,
-    fontWeight: '700',
-    textTransform: 'uppercase',
+    fontWeight: "700",
+    textTransform: "uppercase",
     letterSpacing: 0.7,
     marginBottom: spacing.xxs,
   },
   name: {
     color: colors.ink,
     fontSize: typography.heading,
-    fontWeight: '800',
+    fontWeight: "800",
   },
   metaRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: "row",
+    flexWrap: "wrap",
     gap: spacing.md,
     marginTop: spacing.sm,
   },
   metaItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    flexDirection: "row",
+    alignItems: "center",
     gap: 5,
   },
   metaText: {

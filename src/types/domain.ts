@@ -71,7 +71,6 @@ export type WorkoutPlan = {
   name: string;
   day: DayKey;
   accent: string;
-  estimatedMinutes: number;
   exercises: WorkoutExercise[];
 };
 

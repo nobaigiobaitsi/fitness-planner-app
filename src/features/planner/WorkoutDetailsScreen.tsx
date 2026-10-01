@@ -243,8 +243,6 @@ export default function WorkoutDetailsScreen() {
           </Text>
           <View style={styles.dot} />
           <Text style={styles.summaryText}>{totalSets} sets</Text>
-          <View style={styles.dot} />
-          <Text style={styles.summaryText}>{workout.estimatedMinutes} min</Text>
         </View>
         <Button
           label="Start workout"

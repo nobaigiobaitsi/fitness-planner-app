@@ -296,13 +296,17 @@ export default function WorkoutSessionScreen() {
             <Text style={styles.restWarningText}>
               {restAlertError === "exact-alarm"
                 ? "Allow FitPlanner in Alarms & reminders for timed background alerts. The on-screen timer still works."
-                : "Background alerts are unavailable. The on-screen timer still works. Check FitPlanner's notification settings."}
+                : restAlertError === "sound-disabled"
+                  ? "Rest alert sounds are muted in your phone settings. Enable sound for FitPlanner's rest alerts."
+                  : "Background alerts are unavailable. The on-screen timer still works. Check FitPlanner's notification settings."}
             </Text>
             <Button
               label={
                 restAlertError === "exact-alarm"
                   ? "Alarm settings"
-                  : "Notification settings"
+                  : restAlertError === "sound-disabled"
+                    ? "Sound settings"
+                    : "Notification settings"
               }
               variant="secondary"
               onPress={() => {

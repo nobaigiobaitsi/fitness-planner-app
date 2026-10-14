@@ -10,7 +10,12 @@ export function useRestTimerEffects(
   isReady: boolean,
   finishRest: (workoutId: string, timerId: string) => void,
 ) {
-  const player = useAudioPlayer(require("../../assets/audio/rest_finished.wav"));
+  const player = useAudioPlayer(
+    require("../../assets/audio/rest_finished.wav"),
+    {
+      keepAudioSessionActive: false,
+    },
+  );
   const latest = useRef({ session, finishRest });
   latest.current = { session, finishRest };
   const [alertError, setAlertError] = useState<RestAlertError | null>(null);
@@ -29,39 +34,66 @@ export function useRestTimerEffects(
     const subscription = NativeAppState.addEventListener("change", (status) => {
       if (status === "active") sync();
     });
-    return () => { active = false; subscription.remove(); };
-  }, [isReady, session?.workoutId, timer?.id, timer?.finished,
-    session?.timerSettings.enabled, session?.timerSettings.soundEnabled,
-    session?.timerSettings.backgroundAlerts]);
+    return () => {
+      active = false;
+      subscription.remove();
+    };
+  }, [
+    isReady,
+    session?.workoutId,
+    timer?.id,
+    timer?.finished,
+    session?.timerSettings.enabled,
+    session?.timerSettings.soundEnabled,
+    session?.timerSettings.backgroundAlerts,
+  ]);
 
   useEffect(() => {
     setSoundError(false);
     if (!isReady || !session || !timer || timer.finished) return;
     let handled = false;
-    let maySound = timer.endsAt > Date.now() && NativeAppState.currentState === "active";
+    let maySound =
+      timer.endsAt > Date.now() && NativeAppState.currentState === "active";
     const playSound = async () => {
       try {
         await setAudioModeAsync({
           allowsRecording: false,
-          playsInSilentMode: false,
+          // iOS requires silent-mode playback for duckOthers. The user's
+          // Rest sound switch still decides whether this tone should play.
+          playsInSilentMode: true,
           shouldPlayInBackground: false,
-          interruptionMode: "mixWithOthers",
+          interruptionMode: "duckOthers",
         });
         await player.seekTo(0);
         const current = latest.current.session;
-        if (current?.restTimer?.id === timer.id && current.timerSettings.enabled &&
-            current.timerSettings.soundEnabled && NativeAppState.currentState === "active") {
+        if (
+          current?.restTimer?.id === timer.id &&
+          current.timerSettings.enabled &&
+          current.timerSettings.soundEnabled &&
+          NativeAppState.currentState === "active"
+        ) {
+          player.volume = 1;
           player.play();
         }
       } catch {
-        if (latest.current.session?.restTimer?.id === timer.id) setSoundError(true);
+        if (latest.current.session?.restTimer?.id === timer.id)
+          setSoundError(true);
       }
     };
     const tick = () => {
-      if (handled || NativeAppState.currentState !== "active" || Date.now() < timer.endsAt) return;
+      if (
+        handled ||
+        NativeAppState.currentState !== "active" ||
+        Date.now() < timer.endsAt
+      )
+        return;
       handled = true;
       latest.current.finishRest(session.workoutId, timer.id);
-      if (maySound && Date.now() - timer.endsAt < 1500 && latest.current.session?.timerSettings.soundEnabled) {
+      if (
+        maySound &&
+        Date.now() - timer.endsAt < 1500 &&
+        latest.current.session?.timerSettings.soundEnabled
+      ) {
         void playSound();
       }
     };
@@ -76,12 +108,20 @@ export function useRestTimerEffects(
         maySound = false;
       }
     });
-    return () => { clearInterval(interval); subscription.remove(); };
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
   }, [isReady, session?.workoutId, timer?.id, timer?.finished, player]);
 
   useEffect(() => {
-    if (!session?.timerSettings.enabled || !session.timerSettings.soundEnabled) player.pause();
-  }, [player, session?.timerSettings.enabled, session?.timerSettings.soundEnabled]);
+    if (!session?.timerSettings.enabled || !session.timerSettings.soundEnabled)
+      player.pause();
+  }, [
+    player,
+    session?.timerSettings.enabled,
+    session?.timerSettings.soundEnabled,
+  ]);
 
   return { alertError, soundError };
 }

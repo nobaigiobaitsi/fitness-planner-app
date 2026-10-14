@@ -1,7 +1,13 @@
 import { useEffect, useState } from "react";
-import { AppState as NativeAppState, StyleSheet, Text, View } from "react-native";
+import {
+  AppState as NativeAppState,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from "react-native";
 
-import { Button } from "@/components/Buttons";
+import { AppIcon } from "@/components/AppIcon";
 import { getExerciseById } from "@/data/exercises";
 import { useAppStore } from "@/store/AppStore";
 import { colors, radii, spacing, typography } from "@/theme/tokens";
@@ -13,37 +19,115 @@ export function RestCountdown() {
   const session = state.activeSession;
   const timer = session?.restTimer;
   useEffect(() => {
-    if (!timer || timer.finished) return;
+    if (!session?.timerSettings.enabled || !timer || timer.finished) return;
     const tick = () => setNow(Date.now());
     tick();
     const interval = setInterval(tick, 250);
     const subscription = NativeAppState.addEventListener("change", tick);
-    return () => { clearInterval(interval); subscription.remove(); };
-  }, [timer?.id, timer?.finished]);
+    return () => {
+      clearInterval(interval);
+      subscription.remove();
+    };
+  }, [session?.timerSettings.enabled, timer?.id, timer?.finished]);
 
-  if (!session || !timer || !session.timerSettings.enabled) return null;
+  if (!session || !session.timerSettings.enabled) return null;
   const workout = state.workouts.find((item) => item.id === session.workoutId);
-  const item = workout?.exercises.find((exercise) => exercise.id === timer.itemId);
+  const item = workout?.exercises.find(
+    (exercise) => exercise.id === timer?.itemId,
+  );
   const exercise = item ? getExerciseById(item.exerciseId) : undefined;
-  const remaining = Math.max(0, Math.ceil((timer.endsAt - now) / 1000));
+  const remaining = timer
+    ? Math.max(0, Math.ceil((timer.endsAt - now) / 1000))
+    : 0;
+  const title = timer?.finished ? "Rest finished" : "Rest timer";
+  const timeLabel = !timer
+    ? "Rest timer ready. Complete a set to start your rest."
+    : timer.finished
+      ? "Rest finished. Ready for your next set."
+      : `${remaining} seconds of rest remaining${exercise ? ` after ${exercise.name}` : ""}, set ${timer.setIndex + 1} completed`;
+
   return (
     <View style={styles.card}>
-      <Text style={styles.title} accessibilityLiveRegion="polite">
-        {timer.finished ? "Rest finished · Ready for your next set" : "Rest before your next set"}
-      </Text>
-      <Text style={styles.caption}>{exercise?.name} · Set {timer.setIndex + 1} completed</Text>
-      <Text style={styles.time} accessibilityLabel={timer.finished ? "Rest finished" : `${remaining} seconds of rest remaining`}>
-        {formatElapsed(timer.finished ? 0 : remaining)}
-      </Text>
-      <Button label={timer.finished ? "Dismiss" : "Skip rest"} variant="secondary"
-        onPress={() => cancelRestTimer(session.workoutId)} />
+      <View style={styles.timerInfo}>
+        <View style={styles.titleRow}>
+          <AppIcon
+            name={timer?.finished ? "check" : "clock"}
+            color={colors.primaryDark}
+            size={16}
+          />
+          <Text style={styles.title} accessibilityLiveRegion="polite">
+            {title}
+          </Text>
+        </View>
+        <Text
+          style={[styles.time, !timer && styles.ready]}
+          accessibilityLabel={timeLabel}
+        >
+          {timer ? formatElapsed(timer.finished ? 0 : remaining) : "Ready"}
+        </Text>
+      </View>
+      {timer ? (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={
+            timer.finished ? "Dismiss rest timer" : "Skip rest"
+          }
+          onPress={() => cancelRestTimer(session.workoutId)}
+          style={({ pressed }) => [styles.action, pressed && styles.pressed]}
+        >
+          <Text style={styles.actionText}>
+            {timer.finished ? "Dismiss" : "Skip"}
+          </Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  card: { padding: spacing.md, borderRadius: radii.lg, backgroundColor: colors.primarySoft, gap: spacing.xs, marginBottom: spacing.lg },
-  title: { color: colors.primaryDark, fontSize: typography.label, fontWeight: "800" },
-  caption: { color: colors.inkMuted, fontSize: typography.caption },
-  time: { color: colors.primaryDark, fontSize: 42, fontWeight: "800", fontVariant: ["tabular-nums"], textAlign: "center", marginVertical: spacing.xs },
+  card: {
+    alignSelf: "flex-end",
+    maxWidth: "100%",
+    minWidth: 164,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.sm,
+    paddingHorizontal: spacing.sm,
+    paddingVertical: spacing.xs,
+    marginBottom: spacing.sm,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radii.md,
+    backgroundColor: colors.primarySoft,
+  },
+  timerInfo: { flexShrink: 1, gap: spacing.xxs },
+  titleRow: { flexDirection: "row", alignItems: "center", gap: spacing.xxs },
+  title: {
+    flexShrink: 1,
+    color: colors.primaryDark,
+    fontSize: typography.caption,
+    fontWeight: "700",
+  },
+  time: {
+    color: colors.primaryDark,
+    fontSize: 28,
+    fontWeight: "800",
+    fontVariant: ["tabular-nums"],
+  },
+  ready: { fontSize: typography.heading },
+  action: {
+    minWidth: 44,
+    minHeight: 44,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: spacing.xs,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+  },
+  actionText: {
+    color: colors.primaryDark,
+    fontSize: typography.caption,
+    fontWeight: "700",
+  },
+  pressed: { opacity: 0.65 },
 });

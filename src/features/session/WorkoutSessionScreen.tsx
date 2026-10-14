@@ -248,6 +248,7 @@ export default function WorkoutSessionScreen() {
     <Screen
       footer={
         <View style={styles.footer}>
+          <RestCountdown />
           <Button
             label={
               counts.done === counts.total
@@ -318,8 +319,6 @@ export default function WorkoutSessionScreen() {
           </Text>
         ) : null}
       </View>
-      <RestCountdown />
-
       <View style={styles.progressHeader}>
         <Text style={styles.progressLabel}>Session progress</Text>
         <Text style={styles.progressValue}>{Math.round(progress * 100)}%</Text>

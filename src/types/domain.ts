@@ -74,6 +74,19 @@ export type WorkoutPlan = {
   exercises: WorkoutExercise[];
 };
 
+export type WorkoutSetLog = {
+  setNumber: number;
+  reps: number;
+  weightKg?: number;
+};
+
+export type WorkoutExerciseLog = {
+  workoutExerciseId: string;
+  exerciseId: string;
+  exerciseName: string;
+  sets: WorkoutSetLog[];
+};
+
 export type WorkoutLog = {
   id: string;
   workoutId: string;
@@ -82,6 +95,8 @@ export type WorkoutLog = {
   durationMinutes: number;
   completedSets: number;
   exerciseCount: number;
+  // Older history has summary totals only. New sessions save a snapshot.
+  exercises?: WorkoutExerciseLog[];
 };
 
 export type SessionTimerSettings = {

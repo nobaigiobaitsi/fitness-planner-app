@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 
+import { getExerciseById } from "@/data/exercises";
 import { createInitialState } from "@/data/initialState";
 import { useRestTimerEffects } from "@/hooks/useRestTimerEffects";
 import { loadAppState, saveAppState } from "@/services/stateStorage";
@@ -18,10 +19,10 @@ import {
   defaultSessionTimerSettings,
   SessionTimerSettings,
   WorkoutExercise,
-  WorkoutLog,
   WorkoutPlan,
 } from "@/types/domain";
 import { createId } from "@/utils/id";
+import { createWorkoutLog } from "@/utils/progress";
 
 type WorkoutExercisePatch = Partial<
   Pick<WorkoutExercise, "sets" | "reps" | "restSeconds" | "weightKg" | "notes">
@@ -60,7 +61,13 @@ type Action =
     }
   | { type: "checkpointSession"; workoutId: string; elapsedSeconds: number }
   | { type: "discardSession"; workoutId: string }
-  | { type: "completeWorkout"; log: WorkoutLog }
+  | {
+      type: "completeWorkout";
+      workoutId: string;
+      id: string;
+      completedAt: string;
+      durationMinutes: number;
+    }
   | { type: "reset"; state: AppState };
 
 function reducer(state: AppState, action: Action): AppState {
@@ -280,12 +287,32 @@ function reducer(state: AppState, action: Action): AppState {
       return state.activeSession?.workoutId === action.workoutId
         ? { ...state, activeSession: null }
         : state;
-    case "completeWorkout":
+    case "completeWorkout": {
+      const session = state.activeSession;
+      const workout = state.workouts.find(
+        (item) => item.id === action.workoutId,
+      );
+      if (!session || !workout || session.workoutId !== workout.id)
+        return state;
+
+      const log = createWorkoutLog(
+        workout,
+        session,
+        {
+          id: action.id,
+          completedAt: action.completedAt,
+          durationMinutes: action.durationMinutes,
+        },
+        (exerciseId) => getExerciseById(exerciseId)?.name,
+      );
+      if (!log) return state;
+
       return {
         ...state,
-        history: [action.log, ...state.history],
+        history: [log, ...state.history],
         activeSession: null,
       };
+    }
     default:
       return state;
   }
@@ -326,11 +353,7 @@ type AppStoreValue = {
   ) => void;
   checkpointSession: (workoutId: string, elapsedSeconds: number) => void;
   discardSession: (workoutId: string) => void;
-  completeWorkout: (
-    workoutId: string,
-    durationMinutes: number,
-    completedSets: number,
-  ) => void;
+  completeWorkout: (workoutId: string, durationMinutes: number) => void;
   renameWorkout: (workoutId: string, name: string) => void;
   deleteAllData: () => void;
 };
@@ -489,24 +512,16 @@ export function AppStoreProvider({ children }: PropsWithChildren) {
   }, []);
 
   const completeWorkout = useCallback(
-    (workoutId: string, durationMinutes: number, completedSets: number) => {
-      const workout = state.workouts.find((item) => item.id === workoutId);
-      if (!workout) return;
-
+    (workoutId: string, durationMinutes: number) => {
       dispatch({
         type: "completeWorkout",
-        log: {
-          id: createId("log"),
-          workoutId,
-          workoutName: workout.name,
-          completedAt: new Date().toISOString(),
-          durationMinutes,
-          completedSets,
-          exerciseCount: workout.exercises.length,
-        },
+        id: createId("log"),
+        workoutId,
+        completedAt: new Date().toISOString(),
+        durationMinutes,
       });
     },
-    [state.workouts],
+    [],
   );
 
   const deleteAllData = useCallback(() => {

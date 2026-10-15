@@ -9,8 +9,10 @@ import {
   SessionRestTimer,
   SessionTimerSettings,
   WorkoutExercise,
+  WorkoutExerciseLog,
   WorkoutLog,
   WorkoutPlan,
+  WorkoutSetLog,
 } from "@/types/domain";
 
 // Keep the existing location so users upgrading from v1 retain their workouts.
@@ -65,6 +67,37 @@ function isWorkoutPlan(value: unknown): value is WorkoutPlan {
   );
 }
 
+function isWorkoutSetLog(value: unknown): value is WorkoutSetLog {
+  if (!isRecord(value)) return false;
+  return (
+    isNonNegativeInteger(value.setNumber) &&
+    value.setNumber > 0 &&
+    value.setNumber <= 100 &&
+    isNonNegativeInteger(value.reps) &&
+    value.reps > 0 &&
+    (value.weightKg === undefined ||
+      (typeof value.weightKg === "number" &&
+        Number.isFinite(value.weightKg) &&
+        value.weightKg >= 0))
+  );
+}
+
+function isWorkoutExerciseLog(value: unknown): value is WorkoutExerciseLog {
+  if (!isRecord(value)) return false;
+  if (!Array.isArray(value.sets) || !value.sets.every(isWorkoutSetLog))
+    return false;
+  const sets = value.sets;
+  return (
+    isNonEmptyString(value.workoutExerciseId) &&
+    isNonEmptyString(value.exerciseId) &&
+    isNonEmptyString(value.exerciseName) &&
+    sets.length > 0 &&
+    sets.every(
+      (set, index) => index === 0 || set.setNumber > sets[index - 1].setNumber,
+    )
+  );
+}
+
 function isWorkoutLog(value: unknown): value is WorkoutLog {
   if (!isRecord(value)) return false;
   return (
@@ -74,7 +107,17 @@ function isWorkoutLog(value: unknown): value is WorkoutLog {
     isNonEmptyString(value.completedAt) &&
     isNonNegativeInteger(value.durationMinutes) &&
     isNonNegativeInteger(value.completedSets) &&
-    isNonNegativeInteger(value.exerciseCount)
+    isNonNegativeInteger(value.exerciseCount) &&
+    (value.exercises === undefined ||
+      (Array.isArray(value.exercises) &&
+        value.exercises.every(isWorkoutExerciseLog) &&
+        value.exercises.length === value.exerciseCount &&
+        new Set(value.exercises.map((exercise) => exercise.workoutExerciseId))
+          .size === value.exercises.length &&
+        value.exercises.reduce(
+          (total, exercise) => total + exercise.sets.length,
+          0,
+        ) === value.completedSets))
   );
 }
 

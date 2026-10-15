@@ -219,11 +219,7 @@ export default function WorkoutSessionScreen() {
     if (finishing.current) return;
     finishing.current = true;
     allowExit.current = true;
-    completeWorkout(
-      workout.id,
-      Math.max(1, Math.round(elapsedSeconds / 60)),
-      counts.done,
-    );
+    completeWorkout(workout.id, Math.max(1, Math.round(elapsedSeconds / 60)));
     router.replace("/");
   };
 

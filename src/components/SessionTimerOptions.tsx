@@ -13,6 +13,7 @@ import { Button } from "@/components/Buttons";
 import {
   openRestAlertSettings,
   requestRestAlertPermission,
+  supportsBackgroundRestAlerts,
 } from "@/services/restAlerts";
 import { colors, spacing, typography } from "@/theme/tokens";
 import { SessionTimerSettings } from "@/types/domain";
@@ -147,7 +148,7 @@ export function SessionTimerOptions({
             value.soundEnabled,
             (soundEnabled) => onChange({ soundEnabled }),
           )}
-          {Platform.OS !== "web"
+          {supportsBackgroundRestAlerts
             ? row(
                 "Locked-screen alerts",
                 asking
@@ -163,15 +164,26 @@ export function SessionTimerOptions({
         </>
       ) : null}
       {value.enabled &&
+      !supportsBackgroundRestAlerts &&
+      Platform.OS !== "web" ? (
+        <Text style={[styles.description, dark && styles.darkDescription]}>
+          Use your installed FitPlanner build to test locked-screen alerts. The
+          countdown and in-app rest sound work in Expo Go.
+        </Text>
+      ) : null}
+      {value.enabled &&
       value.soundEnabled &&
       !value.backgroundAlerts &&
-      Platform.OS !== "web" ? (
+      supportsBackgroundRestAlerts ? (
         <Text style={[styles.description, dark && styles.darkDescription]}>
           Turn on Locked-screen alerts to hear the rest sound when FitPlanner is
           not open.
         </Text>
       ) : null}
-      {value.enabled && value.backgroundAlerts && Platform.OS === "android" ? (
+      {value.enabled &&
+      value.backgroundAlerts &&
+      supportsBackgroundRestAlerts &&
+      Platform.OS === "android" ? (
         <>
           <Text style={[styles.description, dark && styles.darkDescription]}>
             Allow FitPlanner in Alarms &amp; reminders so rest alerts arrive on

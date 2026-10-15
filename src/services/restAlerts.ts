@@ -1,8 +1,18 @@
+import { isRunningInExpoGo } from "expo";
 import Constants from "expo-constants";
-import * as Notifications from "expo-notifications";
+import type { NotificationPermissionsStatus } from "expo-notifications";
 import { Linking, AppState as NativeAppState, Platform } from "react-native";
 
 import { ActiveSession } from "@/types/domain";
+
+// Loading expo-notifications also initializes its push-token support. On
+// Android Expo Go that can throw before Router can load any of our screens.
+// Our bundled custom sound and locked-screen alert settings need our own build.
+export const supportsBackgroundRestAlerts =
+  Platform.OS !== "web" && !isRunningInExpoGo();
+
+const Notifications: typeof import("expo-notifications") | null =
+  supportsBackgroundRestAlerts ? require("expo-notifications") : null;
 
 const REST_NOTIFICATION_KIND = "fitplanner-rest";
 // Android keeps a channel's original sound and audio attributes. A new ID is
@@ -27,7 +37,7 @@ let desiredTarget: AlertTarget | null = null;
 let revision = 0;
 let notificationQueue: Promise<unknown> = Promise.resolve();
 
-if (Platform.OS !== "web") {
+if (Notifications) {
   // Use the player while the app is visible and the system alert while it is
   // inactive/backgrounded. Check at delivery time, including screen locking.
   Notifications.setNotificationHandler({
@@ -48,9 +58,8 @@ if (Platform.OS !== "web") {
   });
 }
 
-function notificationsAllowed(
-  settings: Notifications.NotificationPermissionsStatus,
-) {
+function notificationsAllowed(settings: NotificationPermissionsStatus) {
+  if (!Notifications) return false;
   if (Platform.OS === "ios") {
     return (
       settings.ios?.status ===
@@ -62,7 +71,7 @@ function notificationsAllowed(
 }
 
 async function createRestChannels() {
-  if (Platform.OS !== "android") return;
+  if (!Notifications || Platform.OS !== "android") return;
   await Notifications.setNotificationChannelAsync(SOUND_CHANNEL, {
     name: "Rest timer sounds",
     description:
@@ -91,7 +100,7 @@ async function createRestChannels() {
 
 // Only called from the user's locked-screen alerts switch, never at app launch.
 export async function requestRestAlertPermission(): Promise<boolean> {
-  if (Platform.OS === "web") return false;
+  if (!Notifications) return false;
   await createRestChannels();
   let settings = await Notifications.getPermissionsAsync();
   if (!notificationsAllowed(settings) && settings.canAskAgain) {
@@ -103,6 +112,7 @@ export async function requestRestAlertPermission(): Promise<boolean> {
 }
 
 export async function openRestAlertSettings(error: RestAlertError) {
+  if (!supportsBackgroundRestAlerts) return;
   if (Platform.OS === "android" && error === "sound-disabled") {
     const appPackage = Constants.expoConfig?.android?.package;
     if (appPackage) {
@@ -155,7 +165,7 @@ function getTarget(session: ActiveSession | null): AlertTarget | null {
 export function syncRestAlert(
   session: ActiveSession | null,
 ): Promise<RestAlertError | null> {
-  if (Platform.OS === "web") return Promise.resolve(null);
+  if (!Notifications) return Promise.resolve(null);
   desiredTarget = getTarget(session);
   const requestedRevision = ++revision;
   const task = notificationQueue
